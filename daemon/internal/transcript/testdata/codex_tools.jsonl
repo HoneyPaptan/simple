@@ -1,0 +1,15 @@
+{"timestamp":"2026-11-08T10:00:00Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Run checks"}]}}
+{"timestamp":"2026-11-08T10:00:01Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","call_id":"shell-ok","arguments":"{\"cmd\":\"go test ./pkg\",\"yield_time_ms\":10000}"}}
+{"timestamp":"2026-11-08T10:00:02Z","type":"response_item","payload":{"type":"function_call_output","call_id":"shell-ok","output":"Wall time: 1.0000 seconds\nProcess exited with code 0\nOutput:\nok"}}
+{"timestamp":"2026-11-08T10:00:03Z","type":"response_item","payload":{"type":"function_call","name":"shell","call_id":"shell-fail","arguments":"{\"command\":[\"go\",\"test\",\"./...\"]}"}}
+{"timestamp":"2026-11-08T10:00:04Z","type":"response_item","payload":{"type":"function_call_output","call_id":"shell-fail","output":"Wall time: 2.0000 seconds\nProcess exited with code 1\nOutput:\nFAIL pkg"}}
+{"timestamp":"2026-11-08T10:00:05Z","type":"response_item","payload":{"type":"custom_tool_call","name":"apply_patch","call_id":"patch-1","input":"*** Begin Patch\n*** Update File: src/main.rs\n@@\n-old line\n+new line\n*** End Patch"}}
+{"timestamp":"2026-11-08T10:00:06Z","type":"response_item","payload":{"type":"custom_tool_call_output","call_id":"patch-1","output":"Plan updated"}}
+{"timestamp":"2026-11-08T10:00:07Z","type":"response_item","payload":{"type":"function_call","name":"update_plan","call_id":"plan-1","arguments":"{\"plan\":[{\"step\":\"Read spec\",\"status\":\"completed\"},{\"step\":\"Implement\",\"status\":\"pending\"}]}"}}
+{"timestamp":"2026-11-08T10:00:08Z","type":"response_item","payload":{"type":"function_call_output","call_id":"plan-1","output":"Plan updated"}}
+{"timestamp":"2026-11-08T10:00:09Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"<environment_context>\nhidden"}]}}
+{"timestamp":"2026-11-08T10:00:10Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Ship it today"}]}}
+{"timestamp":"2026-11-08T10:00:11Z","type":"event_msg","payload":{"type":"user_message","message":"Ship it today"}}
+{"timestamp":"2026-11-08T10:00:12Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","call_id":"shell-abort","arguments":"{\"command\":[\"sleep\",\"60\"]}"}}
+{"timestamp":"2026-11-08T10:00:13Z","type":"event_msg","payload":{"type":"turn_aborted","reason":"interrupted"}}
+{"timestamp":"2026-11-08T10:00:20Z","type":"response_item","payload":{"type":"reasoning","summary":[{"type":"summary_text","text":"**Checking tests**"}],"content":null,"encrypted_content":"abc"}}

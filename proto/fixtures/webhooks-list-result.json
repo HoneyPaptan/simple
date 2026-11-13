@@ -1,0 +1,9 @@
+{
+  "webhooks": [
+    {
+      "id": "w_abc",
+      "url": "https://example.com/hook",
+      "kinds": ["approval", "done"]
+    }
+  ]
+}

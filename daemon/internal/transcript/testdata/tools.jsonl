@@ -1,0 +1,5 @@
+{"type":"user","uuid":"u1","timestamp":"2026-11-08T10:00:00Z","message":{"role":"user","content":"run the tests"}}
+{"type":"assistant","uuid":"a1","timestamp":"2026-11-08T10:00:01Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"tb","name":"Bash","input":{"command":"go test ./...","description":"Run the tests"}}]}}
+{"type":"user","uuid":"r1","timestamp":"2026-11-08T10:00:02Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tb","is_error":true,"content":[{"type":"text","text":"FAIL pkg"}]}]}}
+{"type":"assistant","uuid":"a2","timestamp":"2026-11-08T10:00:03Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"tr","name":"Read","input":{"file_path":"/x/error_handling.go"}}]}}
+{"type":"user","uuid":"r2","timestamp":"2026-11-08T10:00:04Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tr","content":"func handleError() {}"}]}}

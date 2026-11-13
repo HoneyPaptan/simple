@@ -1,0 +1,13 @@
+{
+  "commands": [
+    {
+      "name": "model",
+      "description": "Switch the AI model and save it as your default for new sessions."
+    },
+    {
+      "name": "compact",
+      "description": "summarize conversation to prevent hitting the context limit",
+      "hint": "Codex"
+    }
+  ]
+}

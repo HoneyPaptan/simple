@@ -1,0 +1,8 @@
+{
+  "models": [
+    {"id": "default", "label": "Default", "efforts": ["low", "medium", "high", "max"]},
+    {"id": "opus", "label": "Opus", "efforts": ["low", "medium", "high", "max"]},
+    {"id": "sonnet", "label": "Sonnet", "efforts": ["low", "medium", "high", "max"]}
+  ],
+  "modes": ["ask", "plan", "auto", "full"]
+}

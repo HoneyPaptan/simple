@@ -1,0 +1,16 @@
+{
+  "entries": [
+    {
+      "name": "src",
+      "dir": true,
+      "size": 0,
+      "mtime_ms": 1700000000000
+    },
+    {
+      "name": "README.md",
+      "dir": false,
+      "size": 42,
+      "mtime_ms": 1700000001000
+    }
+  ]
+}

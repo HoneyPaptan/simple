@@ -1,0 +1,9 @@
+The agent wants to run:
+
+  go test ./...
+
+Approve this tool call?
+
+  1) Allow once
+  2) Allow for this session
+  3) Deny

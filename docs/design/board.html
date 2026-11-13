@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>simple prototype board</title>
+<style>
+@font-face{font-family:'Geist';src:url('fonts/geist-latin-wght-normal.woff2') format('woff2');font-weight:100 900}
+@font-face{font-family:'Geist Mono';src:url('fonts/geist-mono-latin-wght-normal.woff2') format('woff2');font-weight:100 900}
+:root{
+  --bg:#000;--fg:#f8f8f8;--mut:#a1a1a1;--faint:rgba(248,248,248,.48);
+  --card:#121212;--raised:#262626;--line:rgba(255,255,255,.1);--hair:rgba(255,255,255,.075);
+  --add:#2fc58f;--del:#ff6467;--warn:#e9c055;
+  --glass:rgba(255,255,255,.075);--glass-strong:rgba(44,44,46,.66);
+  --edge:inset 0 .5px 0 rgba(255,255,255,.22),inset 0 0 0 .5px rgba(255,255,255,.09);
+  --blur:blur(28px) saturate(1.7) brightness(1.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0b0b0b;color:var(--fg);font-family:'Geist',system-ui,sans-serif;-webkit-font-smoothing:antialiased;padding:56px 56px 80px;width:2720px}
+.mono{font-family:'Geist Mono',ui-monospace,monospace}
+svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.board-h{margin-bottom:44px}
+.board-h h1{font-size:28px;font-weight:600;letter-spacing:-.01em}
+.board-h p{color:var(--mut);font-size:15px;margin-top:6px;max-width:900px;line-height:1.5}
+section{margin-bottom:64px}
+section>h2{font-size:18px;font-weight:600;margin-bottom:6px}
+section>p{color:var(--mut);font-size:14px;margin-bottom:22px}
+.frames{display:flex;gap:40px;flex-wrap:wrap}
+figure{width:390px}
+figcaption{margin-top:14px;font-size:14px;color:var(--mut);display:flex;justify-content:space-between}
+figcaption b{color:var(--fg);font-weight:500}
+
+.phone{position:relative;width:390px;height:844px;background:var(--bg);border-radius:52px;overflow:hidden;outline:1px solid rgba(255,255,255,.14);isolation:isolate}
+.sb{position:absolute;top:0;left:0;right:0;height:52px;display:flex;align-items:center;justify-content:space-between;padding:6px 30px 0 40px;z-index:30;font-size:16px;font-weight:600}
+.sb .ic{display:flex;gap:6px;align-items:center}
+.topfade{position:absolute;top:0;left:0;right:0;height:118px;background:linear-gradient(#000 62%,rgba(0,0,0,0));z-index:4;pointer-events:none}
+.botfade{position:absolute;bottom:0;left:0;right:0;height:150px;background:linear-gradient(rgba(0,0,0,0),#000 55%);z-index:4}
+.hdr{position:absolute;top:58px;left:16px;right:16px;height:44px;display:flex;align-items:center;gap:10px;z-index:6}
+.hdr .sp{flex:1}
+.hdr .t{position:absolute;text-align:center;font-size:17px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hdr .t small{display:block;font-size:12px;color:var(--mut);font-weight:400;margin-top:1px}
+.circ{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);box-shadow:var(--edge),0 6px 20px rgba(0,0,0,.45);flex:none}
+.avatar{font-size:14px;color:var(--mut)}
+.glass{background:var(--glass);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);box-shadow:var(--edge),0 10px 30px rgba(0,0,0,.5)}
+
+.scroll{position:absolute;inset:0;padding-top:118px;z-index:1}
+.lt{font-size:22px;font-weight:500;letter-spacing:-.01em;margin:8px 20px 14px}
+.lt span{color:var(--faint)}
+.row{display:flex;align-items:center;height:54px;padding:0 20px;position:relative}
+.row .ri{width:31px;color:var(--mut);display:flex}
+.row .rl{flex:1;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .rl span{color:var(--faint);font-size:15px;margin-left:6px}
+.row .rr{color:var(--mut);font-size:16px;display:flex;align-items:center;gap:6px}
+.row .rr svg{width:18px;height:18px;color:var(--faint)}
+.row::after{content:"";position:absolute;left:51px;right:20px;bottom:0;border-bottom:1px solid var(--hair)}
+.row.nl::after{left:20px}
+.row.muted .rl{color:var(--mut)}
+.sec{font-size:15px;color:var(--faint);margin:22px 20px 6px}
+.arow{display:flex;gap:14px;padding:13px 20px 0 30px;position:relative}
+.arow .dot{width:8px;height:8px;border-radius:50%;background:#4a4a4a;margin-top:8px;flex:none}
+.arow .dot.on{background:var(--warn);box-shadow:0 0 0 4px rgba(233,192,85,.16)}
+.arow .dot.run{background:var(--fg)}
+.arow .b{flex:1;padding-bottom:13px;border-bottom:1px solid var(--hair);min-width:0}
+.arow .t{font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.arow .m{font-size:15px;color:var(--mut);margin-top:3px;display:flex;align-items:center;gap:5px;white-space:nowrap}
+.arow .m svg{width:15px;height:15px}
+.add{color:var(--add)}.del{color:var(--del)}.warn{color:var(--warn)}
+
+.cpill{position:absolute;left:12px;right:12px;bottom:30px;height:56px;border-radius:28px;display:flex;align-items:center;gap:10px;padding:0 6px;z-index:8}
+.cpill .ph{flex:1;font-size:17px;color:var(--faint)}
+.ib{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.09);box-shadow:inset 0 .5px 0 rgba(255,255,255,.16);color:var(--mut);flex:none}
+.ib.s{width:34px;height:34px}.ib.s svg{width:19px;height:19px}
+.send{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--fg);color:#000;flex:none}
+.send svg{width:19px;height:19px;stroke-width:2.2}
+.ccard{position:absolute;left:12px;right:12px;border-radius:28px;padding:10px 14px 10px;z-index:9}
+.handle{width:36px;height:5px;border-radius:3px;background:rgba(255,255,255,.22);margin:0 auto 10px}
+.chips{display:flex;gap:12px;font-size:15px;color:var(--mut);align-items:center;flex-wrap:wrap}
+.chips span{display:flex;align-items:center;gap:4px}
+.chips svg{width:15px;height:15px}
+.ctext{font-size:17px;line-height:23px;margin:9px 2px 12px}
+.ctext .caret{display:inline-block;width:2px;height:20px;background:var(--fg);vertical-align:-4px;margin-left:1px}
+.cbar{display:flex;align-items:center;gap:8px}
+.chip{height:30px;border-radius:15px;padding:0 10px;display:flex;align-items:center;gap:5px;font-size:15px;color:var(--fg);background:rgba(255,255,255,.08);box-shadow:inset 0 .5px 0 rgba(255,255,255,.15);white-space:nowrap}
+.chip svg{width:14px;height:14px;color:var(--mut)}
+.chip.mode{background:rgba(233,192,85,.14);color:var(--warn)}
+.chip.mode svg{color:var(--warn)}
+.chip.full{background:rgba(255,100,103,.14);color:var(--del)}
+.chip.full svg{color:var(--del)}
+.chip.plain{background:none;box-shadow:none;padding:0 4px;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.cbar .sp{flex:1}
+
+.kb{position:absolute;left:0;right:0;bottom:0;height:300px;background:rgba(36,36,38,.92);border-radius:28px 28px 0 0;padding:10px 4px 0;z-index:8;box-shadow:inset 0 .5px 0 rgba(255,255,255,.12)}
+.kr{display:flex;gap:6px;justify-content:center;margin-bottom:11px}
+.k{width:33px;height:44px;border-radius:7px;background:#5a5a5c;display:grid;place-items:center;font-size:22px;color:#fff}
+.k.w{width:46px;background:#3e3e40;font-size:15px}
+.k.sp{width:186px}
+.k.rt{width:88px;background:#3e3e40}
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:7}
+
+.sheet{position:absolute;left:0;right:0;bottom:0;border-radius:36px 36px 0 0;z-index:10;background:var(--glass-strong);backdrop-filter:blur(40px) saturate(1.6);-webkit-backdrop-filter:blur(40px) saturate(1.6);box-shadow:var(--edge),0 -10px 40px rgba(0,0,0,.6);padding-top:8px}
+.sheet.stack{left:9px;right:9px;bottom:9px;border-radius:40px;background:rgba(58,58,60,.72)}
+.shh{display:flex;align-items:center;padding:8px 16px 12px;position:relative;height:60px}
+.shh .t{position:absolute;left:70px;right:70px;text-align:center;font-size:17px;font-weight:600}
+.shh .sp{flex:1}
+.pillbtn{height:44px;border-radius:22px;padding:0 18px;display:grid;place-items:center;font-size:17px;background:var(--glass);box-shadow:var(--edge)}
+.search{margin:0 16px 6px;height:44px;border-radius:22px;background:rgba(255,255,255,.08);display:flex;align-items:center;gap:8px;padding:0 14px;color:var(--faint);font-size:17px}
+.search svg{width:20px;height:20px}
+.srow{display:flex;align-items:center;min-height:52px;margin:0 20px;border-bottom:1px solid var(--hair);gap:10px;font-size:17px}
+.srow .l{flex:1}
+.srow .l small{display:block;color:var(--faint);font-size:14px;margin-top:2px}
+.srow .q{color:var(--mut);font-size:15px;margin-left:4px}
+.srow .v{color:var(--mut);display:flex;align-items:center;gap:4px}
+.srow svg{width:20px;height:20px}
+.srow .lead{color:var(--mut)}
+.ssec{font-size:15px;color:var(--faint);margin:18px 20px 2px}
+.primary{height:50px;border-radius:25px;background:var(--fg);color:#000;display:grid;place-items:center;font-size:17px;font-weight:500}
+.secondary{height:50px;border-radius:25px;background:rgba(255,255,255,.1);display:grid;place-items:center;font-size:17px;box-shadow:var(--edge)}
+.toggle{width:52px;height:32px;border-radius:16px;background:rgba(255,255,255,.16);position:relative}
+.toggle::after{content:"";position:absolute;left:2px;top:2px;width:28px;height:28px;border-radius:50%;background:#fff}
+.toggle.on{background:var(--add)}
+.toggle.on::after{left:22px}
+
+.menu{position:absolute;z-index:12;border-radius:22px;padding:6px;min-width:210px;background:rgba(48,48,50,.7);backdrop-filter:blur(36px) saturate(1.7);-webkit-backdrop-filter:blur(36px) saturate(1.7);box-shadow:var(--edge),0 16px 50px rgba(0,0,0,.7)}
+.mi{display:flex;align-items:center;gap:12px;height:42px;padding:0 12px;font-size:16px;border-radius:14px}
+.mi svg{width:19px;height:19px;color:var(--mut)}
+.mi .x{flex:1}
+.mi small{color:var(--faint);font-size:13px;display:block}
+.mi.sel{background:rgba(255,255,255,.08)}
+.mi.danger,.mi.danger svg{color:var(--del)}
+.msep{height:1px;background:var(--hair);margin:5px 10px}
+.mi.tall{height:auto;padding:9px 12px;align-items:flex-start}
+
+.dialog{position:absolute;left:44px;right:44px;top:50%;transform:translateY(-50%);z-index:12;border-radius:30px;padding:22px 18px 18px;background:rgba(48,48,50,.74);backdrop-filter:blur(40px) saturate(1.6);-webkit-backdrop-filter:blur(40px) saturate(1.6);box-shadow:var(--edge),0 20px 60px rgba(0,0,0,.7);text-align:center}
+.dialog h3{font-size:17px;font-weight:600}
+.dialog p{font-size:15px;color:var(--mut);margin-top:6px;line-height:1.4}
+.dialog .btns{display:flex;gap:10px;margin-top:18px}
+.dialog .btns>div{flex:1;height:46px;font-size:16px}
+.field{height:46px;border-radius:14px;background:rgba(0,0,0,.35);display:flex;align-items:center;padding:0 12px;margin-top:14px;font-size:16px;text-align:left}
+.field .selt{background:rgba(120,160,255,.35);border-radius:3px;padding:1px 0}
+
+.doc{padding:0 20px;font-size:17px;line-height:1.42}
+.doc p{margin:0 0 12px}
+.doc h3{font-size:22px;font-weight:600;line-height:1.25;margin:16px 0 8px;letter-spacing:-.01em}
+.doc h4{font-size:19px;font-weight:600;margin:16px 0 8px;line-height:1.3}
+.doc b{font-weight:600}
+.doc code{font-family:'Geist Mono',monospace;font-size:14.5px;background:rgba(255,255,255,.09);border-radius:5px;padding:1px 4px}
+.doc hr{border:0;border-top:1px solid var(--hair);margin:16px 0}
+.bubble{margin:6px 0 16px 54px;background:#1c1c1e;border-radius:24px;padding:13px 16px;font-size:17px;line-height:1.38}
+.explored{font-size:16px;color:var(--faint);margin-bottom:6px}
+.explored b{color:var(--mut);font-weight:400}
+.codecard{border:1px solid var(--line);border-radius:18px;margin:6px 0 14px;overflow:hidden;background:var(--card)}
+.codecard .h{display:flex;align-items:center;gap:10px;padding:11px 14px;font-size:15px;border-bottom:1px solid var(--hair)}
+.codecard .h .lg{color:var(--mut);font-size:14px}
+.codecard .h .ln{margin-left:auto;color:var(--mut);font-size:14px}
+.codecard pre{font-family:'Geist Mono',monospace;font-size:12.5px;line-height:1.6;padding:10px 14px;white-space:pre;overflow:hidden;position:relative}
+.codecard pre .n{color:#5c5c5c;display:inline-block;width:24px}
+.cp{width:28px;height:28px;margin:-4px -6px -4px 0;border-radius:50%;display:grid;place-items:center;background:rgba(40,40,40,.8);box-shadow:var(--edge);color:var(--mut)}
+.cp svg{width:15px;height:15px}
+.kw{color:#c6a6ff}.fn{color:#7fd0ff}.st{color:#a4e08a}.nm{color:#ffcf70}.cm{color:#666}
+.tbl{border:1px solid var(--line);border-radius:14px;overflow:hidden;font-size:14px;margin:6px 0 14px}
+.tbl div{display:flex;border-bottom:1px solid var(--hair)}
+.tbl div:last-child{border:0}
+.tbl span{flex:1;padding:9px 12px}
+.tbl span+span{border-left:1px solid var(--hair);font-family:'Geist Mono',monospace;font-size:12.5px;color:var(--mut)}
+.tbl .th{background:#111;color:var(--mut)}
+.changes{border:1px solid var(--line);border-radius:18px;background:var(--card);margin:4px 0 14px}
+.changes .h{padding:12px 14px;font-size:16px;border-bottom:1px solid var(--hair)}
+.changes .h span{color:var(--mut)}
+.fr{display:flex;align-items:center;gap:10px;padding:0 14px;height:44px;font-size:15px;border-bottom:1px solid var(--hair)}
+.fr:last-child{border:0}
+.fr .tg{font-family:'Geist Mono',monospace;font-size:11.5px;color:var(--mut);width:22px}
+.fr .nm2{flex:1;color:var(--fg)}
+.fr .ct{font-family:'Geist Mono',monospace;font-size:13px}
+.fr.more{color:var(--mut)}
+.acts{position:absolute;left:16px;bottom:100px;display:flex;gap:8px;z-index:8}
+.apill{height:38px;border-radius:19px;padding:0 14px;display:flex;align-items:center;gap:6px;font-size:15px}
+.apill.w{background:var(--fg);color:#000}
+.card{border:1px solid var(--line);border-radius:20px;background:var(--card);padding:14px;margin:4px 0 14px}
+.card .ttl{font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px}
+.card .sub{font-size:15px;color:var(--mut);margin-top:4px}
+.card pre{font-family:'Geist Mono',monospace;font-size:13px;background:#000;border-radius:10px;padding:10px 12px;margin-top:10px;border:1px solid var(--hair);white-space:pre-wrap}
+.btnrow{display:flex;gap:8px;margin-top:12px}
+.btnrow>div{flex:1;height:42px;border-radius:21px;font-size:16px;display:grid;place-items:center}
+.btnrow .w{background:var(--fg);color:#000;font-weight:500}
+.btnrow .g{background:rgba(255,255,255,.09);box-shadow:var(--edge)}
+.choice{display:flex;align-items:center;gap:10px;height:44px;border-radius:14px;background:rgba(255,255,255,.06);padding:0 12px;margin-top:8px;font-size:15px}
+.choice .kn{font-family:'Geist Mono',monospace;color:var(--mut);font-size:13px;width:14px}
+.link{color:var(--mut);font-size:15px;margin-top:10px;display:flex;align-items:center;gap:6px}
+.link svg{width:16px;height:16px}
+.done{color:var(--add);font-size:15px;display:flex;gap:6px;align-items:center;margin:2px 0 12px}
+.done svg{width:16px;height:16px}
+.peek{border:1px solid var(--line);border-radius:18px;background:#070707;overflow:hidden;margin:4px 0 14px}
+.peek .h{display:flex;align-items:center;gap:8px;padding:9px 12px;font-size:14px;color:var(--mut);border-bottom:1px solid var(--hair)}
+.peek .h .live{width:7px;height:7px;border-radius:50%;background:var(--add)}
+.peek pre{font-family:'Geist Mono',monospace;font-size:11.5px;line-height:1.5;padding:9px 12px;color:#cfcfcf;white-space:pre}
+.working{display:flex;align-items:center;gap:8px;color:var(--mut);font-size:15px;margin:4px 0 10px}
+.orb{width:14px;height:14px;border-radius:50%;background:conic-gradient(from 40deg,var(--fg),rgba(255,255,255,.1) 70%,var(--fg));-webkit-mask:radial-gradient(circle,transparent 4px,#000 5px);mask:radial-gradient(circle,transparent 4px,#000 5px)}
+.banner{position:absolute;top:110px;left:50%;transform:translateX(-50%);z-index:7;height:34px;border-radius:17px;padding:0 14px;display:flex;align-items:center;gap:8px;font-size:14px;white-space:nowrap}
+.glyph{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;background:#1e1e1e;box-shadow:inset 0 0 0 .5px rgba(255,255,255,.12);font-size:11px;font-weight:600;flex:none}
+.glyph svg{width:14px;height:14px;stroke-width:2}
+</style>
+</head>
+<body>
+<div class="board-h">
+  <h1>simple, prototype board</h1>
+  <p>Dark, pitch black and white, liquid glass. Frames are 390 by 844 points.</p>
+</div>
+<div id="board"></div>
+<script>
+const P={
+plus:'<path d="M12 5v14M5 12h14"/>',search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+mic:'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
+x:'<path d="M18 6 6 18M6 6l12 12"/>',check:'<path d="M20 6 9 17l-5-5"/>',chevR:'<path d="m9 18 6-6-6-6"/>',chevD:'<path d="m6 9 6 6 6-6"/>',
+back:'<path d="m15 18-6-6 6-6"/>',more:'<circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>',
+filter:'<path d="M4 7h16M7 12h10M10 17h4"/>',folder:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+folders:'<path d="M7 5h3l2 2h7a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/><path d="M3 9v9a2 2 0 0 0 2 2h12"/>',
+bell:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
+folderPlus:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM12 10v6M9 13h6"/>',
+server:'<rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/>',
+link:'<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>',
+up:'<path d="M12 19V5M5 12l7-7 7 7"/>',branch:'<circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="7" r="2.5"/><path d="M6 8.5v7M18 9.5c0 4.5-6 3.5-10.6 6.8"/>',
+image:'<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/>',
+scan:'<path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/>',
+camera:'<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/>',
+file:'<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5"/>',
+pin:'<path d="M12 17v5M9 10.8V4h6v6.8l2 3.2H7z"/>',pencil:'<path d="M17 3l4 4L7 21H3v-4z"/>',
+mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+archive:'<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4"/>',
+copy:'<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>',
+share:'<path d="M12 3v12M8 7l4-4 4 4M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/>',
+trash:'<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+stop:'<rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"/>',
+term:'<rect x="3" y="4" width="18" height="16" rx="3"/><path d="m7 9 3 3-3 3M12 15h5"/>',
+grid:'<rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/>',
+updown:'<path d="m7 15 5 5 5-5M7 9l5-5 5 5"/>',shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>',
+sliders:'<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>',
+draft:'<circle cx="12" cy="12" r="8" stroke-dasharray="3 3"/>',
+pr:'<circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M6 8.5v7M18 15.5V9a3 3 0 0 0-3-3h-3m2-2-2 2 2 2"/>',
+eye:'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+bolt:'<path d="M13 3 4 14h7l-1 7 9-11h-7z"/>',hand:'<path d="M12 3v9M8 6v7M16 6v7M20 10v4a8 8 0 0 1-16 0v-1"/>',
+refresh:'<path d="M3 12a9 9 0 0 1 15.5-6.3L21 8M21 3v5h-5M21 12a9 9 0 0 1-15.5 6.3L3 16M3 21v-5h5"/>',
+wave:'<path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 7v10M21 12h0"/>',
+qr:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/>',
+gauge:'<path d="M12 14l4-4M3.3 17a10 10 0 1 1 17.4 0"/>',globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+};
+const I=(n,s)=>`<svg class="i" viewBox="0 0 24 24"${s?` style="width:${s}px;height:${s}px"`:''}>${P[n]}</svg>`;
+const G={claude:'<svg class="i" viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6 5.6 18.4"/></svg>',
+codex:'<svg class="i" viewBox="0 0 24 24"><path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z"/></svg>',
+cursor:'<svg class="i" viewBox="0 0 24 24"><path d="M5 4l14 8-6 1.5L10 20z"/></svg>',
+opencode:'<svg class="i" viewBox="0 0 24 24"><path d="M9 4H6v16h3M15 4h3v16h-3"/></svg>',
+fx:'<span style="font-style:italic;font-family:Geist Mono">fx</span>'};
+const gl=a=>`<span class="glyph">${G[a]}</span>`;
+
+const sb=()=>`<div class="sb"><span>9:41</span><span class="ic"><svg width="18" height="11" viewBox="0 0 18 11"><rect x="0" y="7" width="3" height="4" rx="1" fill="#fff"/><rect x="5" y="5" width="3" height="6" rx="1" fill="#fff"/><rect x="10" y="2.5" width="3" height="8.5" rx="1" fill="#fff"/><rect x="15" y="0" width="3" height="11" rx="1" fill="#fff"/></svg><svg width="16" height="12" viewBox="0 0 16 12"><path d="M8 11.5 5.6 9a3.4 3.4 0 0 1 4.8 0zM3.2 6.6a6.8 6.8 0 0 1 9.6 0l-1.6 1.6a4.5 4.5 0 0 0-6.4 0zM.8 4.2a10.2 10.2 0 0 1 14.4 0l-1.6 1.6a7.9 7.9 0 0 0-11.2 0z" fill="#fff"/></svg><svg width="27" height="13" viewBox="0 0 27 13"><rect x=".5" y=".5" width="23" height="12" rx="3.5" stroke="rgba(255,255,255,.4)" fill="none"/><rect x="2" y="2" width="20" height="9" rx="2.2" fill="#fff"/><rect x="24.5" y="4.5" width="2" height="4" rx="1" fill="rgba(255,255,255,.4)"/></svg></span></div>`;
+const circ=(n,c='')=>`<div class="circ ${c}">${P[n]?I(n):n}</div>`;
+const hdr=(left,right,title)=>`<div class="topfade"></div><div class="hdr">${left.map(n=>circ(n)).join('')}${title?`<div class="t" data-a="title" style="${right.length>1?`left:${left.length*54+8}px;right:${right.length*54+4}px;text-align:left`:`left:${Math.max(left.length,right.length)*54+4}px;right:${Math.max(left.length,right.length)*54+4}px`}">${title}</div>`:''}<div class="sp"></div>${right.map(n=>circ(n)).join('')}</div>`;
+const homeHdr=()=>hdr([],['search','plus']).replace('<div class="hdr">','<div class="hdr"><div class="circ avatar">h</div>');
+const row=(ic,l,r='',chev=true,cls='')=>`<div class="row ${cls}"><span class="ri">${I(ic)}</span><span class="rl">${l}</span><span class="rr">${r}${chev?I('chevR'):''}</span></div>`;
+const pill=(ph)=>`<div class="botfade"></div><div class="cpill glass"><div class="ib">${I('plus')}</div><div class="ph">${ph}</div><div class="ib">${I('mic')}</div></div>`;
+const keyboard=()=>{const r=s=>`<div class="kr">${[...s].map(c=>`<div class="k">${c}</div>`).join('')}</div>`;
+ return `<div class="kb">${r('qwertyuiop')}${r('asdfghjkl')}<div class="kr"><div class="k w">⇧</div>${[...'zxcvbnm'].map(c=>`<div class="k">${c}</div>`).join('')}<div class="k w">⌫</div></div><div class="kr"><div class="k w">?123</div><div class="k w">,</div><div class="k sp"></div><div class="k w">.</div><div class="k rt">${I('up',18)}</div></div></div>`};
+const ccard=({bottom=312,chips,text,mode='Ask',modeCls='mode',model='Opus 4.8',extra='',sendIc='up',caret=true,attach=''})=>`<div class="ccard glass" style="bottom:${bottom}px"><div class="handle"></div>${attach}<div class="chips">${chips}</div><div class="ctext">${text}${caret?'<span class="caret"></span>':''}</div><div class="cbar"><div class="ib s">${I('plus')}</div><div class="chip ${modeCls}" data-a="mode">${I(modeCls==='full'?'bolt':'shield')}${mode}${I('chevD')}</div><div class="chip plain">${model}${I('chevD')}</div>${extra}<div class="sp"></div><div class="ib s">${I('mic')}</div><div class="send">${I(sendIc)}</div></div></div>`;
+const chipsWs=(ws='simple-api',agent='claude',an='Claude Code')=>`<span>${I('folder')}${ws}${I('chevD')}</span><span data-a="agent">${gl(agent).replace('glyph','glyph" style="width:18px;height:18px;border-radius:5px')}${an}${I('chevD')}</span><span>${I('branch')}main</span>`;
+const sheet=(top,inner,cls='')=>`<div class="sheet ${cls}" style="top:${top}px"><div class="handle"></div>${inner}</div>`;
+const shh=(title,right='')=>`<div class="shh">${circ('x')}<div class="t">${title}</div><div class="sp"></div>${right}</div>`;
+const srow=(l,r='',lead='')=>`<div class="srow">${lead?`<span class="lead">${I(lead)}</span>`:''}<div class="l">${l}</div>${r}</div>`;
+const phone=(inner)=>`<div class="phone">${sb()}${inner}</div>`;
+
+const homeBody=()=>`<div class="scroll"><div class="lt">Workspaces</div>
+${row('folders','All Agents','7')}${row('bell','Needs you','<span class="warn">2</span>')}
+${row('folder','simple-api<span>simple</span>','3')}${row('folder','halo<span>simple</span>','2')}${row('folder','hp<span>devbox</span>','1')}
+${row('folderPlus','Add Workspace','',false,'muted')}</div>`;
+const agentsBody=()=>`<div class="scroll"><div class="lt">All Agents</div>
+<div class="sec">Needs you</div>
+<div class="arow"><span class="dot on"></span><div class="b"><div class="t">Add retry with backoff to the Go client</div><div class="m">${gl('claude').replace('glyph','glyph" style="width:16px;height:16px;border-radius:4px')}Claude Code<span>·</span><span class="warn">Wants to run npm test</span></div></div></div>
+<div class="arow"><span class="dot on"></span><div class="b"><div class="t">Pick a database for halo sync</div><div class="m">${gl('codex').replace('glyph','glyph" style="width:16px;height:16px;border-radius:4px')}Codex<span>·</span><span class="warn">Asked a question</span></div></div></div>
+<div class="sec">Recents</div>
+<div class="arow"><span class="dot run"></span><div class="b"><div class="t">Auth refactor with session tokens</div><div class="m">${I('pr')}<span class="add">Open</span> · <span class="add">+820</span><span class="del">-12</span> · simple-api</div></div></div>
+<div class="arow"><span class="dot run"></span><div class="b"><div class="t">Streaming parser for transcripts</div><div class="m"><span class="orb" style="width:12px;height:12px"></span>Working · simple-api</div></div></div>
+<div class="arow"><span class="dot"></span><div class="b"><div class="t">Landing page copy pass</div><div class="m">${I('branch')}Uncommitted · <span class="add">+132</span><span class="del">-37</span> · hp</div></div></div>
+<div class="arow"><span class="dot"></span><div class="b"><div class="t">Benchmark cold start</div><div class="m">No changes</div></div></div>
+<div class="sec">halo</div>
+<div class="arow"><span class="dot"></span><div class="b"><div class="t">Offline queue for sends</div><div class="m">${I('pr')}<span style="color:#b48cff">Merged</span> · <span class="add">+273</span><span class="del">-127</span> · halo</div></div></div></div>`;
+
+const chatHdr=(t='Add retry with backoff',sub='Claude Code · simple-api')=>hdr(['back'],['grid','more'],`${t}<small>${sub}</small>`);
+const docRetry=()=>`<div class="scroll"><div class="doc">
+<div class="bubble">Find where the Go client calls the API and add retry with exponential backoff. I need:<br>1. Every call site and file path<br>2. How errors are handled today<br>3. A plan before you change code</div>
+<div class="explored"><b>Explored</b> 14 files, 6 searches, 3 other tools</div>
+<h3>Summary</h3>
+<p>All requests go through <code>client.Do</code> in <code>client/http.go</code>. There is <b>no retry today</b>: a timeout returns straight to the caller, and <code>sync.Run</code> gives up after one failure.</p>
+<hr><h4>1. Call sites</h4>
+<div class="tbl"><div class="th"><span>Role</span><span>Path</span></div><div><span>HTTP wrapper</span><span>client/http.go</span></div><div><span>Sync loop</span><span>sync/run.go</span></div><div><span>Auth refresh</span><span>auth/token.go</span></div></div>
+</div></div>`;
+const docCode=()=>`<div class="scroll"><div class="doc">
+<h3>2. How errors are handled today</h3>
+<p><b>Single attempt</b>: only <code>ctx.Err()</code> is checked, not <code>resp.StatusCode</code>:</p>
+<div class="codecard"><div class="h"><span class="lg mono">GO</span>http.go<span class="ln">Ln 39-44</span><span class="cp">${I('copy')}</span></div><pre><span class="n">39</span><span class="kw">func</span> (c *Client) <span class="fn">Do</span>(req *Request) error {
+<span class="n">40</span>  resp, err := c.http.<span class="fn">Do</span>(req.raw)
+<span class="n">41</span>  <span class="kw">if</span> err != <span class="kw">nil</span> {
+<span class="n">42</span>    <span class="kw">return</span> err
+<span class="n">43</span>  }
+<span class="n">44</span>  <span class="kw">return</span> <span class="fn">decode</span>(resp)</pre></div>
+<p>Used by the sync loop on every tick:</p>
+<div class="codecard"><div class="h"><span class="lg mono">GO</span>run.go<span class="ln">Ln 18-19</span><span class="cp">${I('copy')}</span></div><pre><span class="n">18</span><span class="kw">if</span> err := c.<span class="fn">Do</span>(req); err != <span class="kw">nil</span> {
+<span class="n">19</span>  <span class="kw">return</span> fmt.<span class="fn">Errorf</span>(<span class="st">"sync: %w"</span>, err)</pre></div>
+<p><b>This is the function to change</b>: wrap <code>Do</code> in a retry loop with jitter, capped at <code>5</code> tries.</p></div></div>`;
+const docChanges=()=>`<div class="scroll"><div class="doc">
+<h3>Retry is in</h3>
+<div class="codecard"><div class="h"><span class="lg mono">SH</span>Run it<span class="ln"></span><span class="cp">${I('copy')}</span></div><pre><span class="n">1</span>cd simple-api
+<span class="n">2</span>go test ./client/...</pre></div>
+<p>Backoff starts at 200 ms and doubles up to 5 s. Tests cover timeouts, 429 and 503.</p>
+<div class="changes"><div class="h">Changes <span>6</span></div>
+<div class="fr"><span class="tg">GO</span><span class="nm2">retry.go</span><span class="ct"><span class="add">+120</span> <span class="del">-0</span></span></div>
+<div class="fr"><span class="tg">GO</span><span class="nm2">http.go</span><span class="ct"><span class="add">+18</span> <span class="del">-6</span></span></div>
+<div class="fr"><span class="tg">GO</span><span class="nm2">retry_test.go</span><span class="ct"><span class="add">+96</span> <span class="del">-0</span></span></div>
+<div class="fr"><span class="tg">MD</span><span class="nm2">README.md</span><span class="ct"><span class="add">+9</span> <span class="del">-1</span></span></div>
+<div class="fr more">${I('more',18)}<span>2 more</span></div></div></div></div>
+<div class="acts"><div class="apill glass">${I('branch',16)}View diff <span class="add">+251</span><span class="del">-7</span></div><div class="apill w">Commit</div></div>`;
+const docApproval=()=>`<div class="scroll"><div class="doc">
+<p>I added the retry loop. Running the client tests now to check the timeout cases.</p>
+<div class="card"><div class="ttl">${I('shield',18)}Run this command?</div><div class="sub">Claude Code is in Ask mode</div><pre>go test ./client/... -race -count=1</pre><div class="btnrow"><div class="g">Deny</div><div class="w">Allow</div></div><div class="link" style="justify-content:center">Always allow go test in simple-api</div></div>
+<div class="explored" style="margin-top:6px"><b>Codex</b> in halo is waiting on the screen</div>
+<div class="card"><div class="ttl">${gl('codex')}Do you trust this folder?</div><div class="sub">~/projects/halo</div>
+<div class="choice"><span class="kn">1</span>Yes, for this session</div><div class="choice"><span class="kn">2</span>Yes, and remember</div><div class="choice"><span class="kn">3</span>No, exit</div>
+<div class="link">${I('term')}Show screen</div></div></div></div>`;
+const docPreview=()=>`<div class="scroll"><div class="doc">
+<p>The landing page is up on the dev server. I kept the hero short and moved pricing below the fold.</p>
+<div class="card" style="padding:10px"><div class="ttl" style="padding:2px 4px 8px;font-size:15px">${I('globe',18)}localhost:5173<span style="margin-left:auto;color:var(--mut);font-weight:400;font-size:13px">devbox</span></div>
+<div style="height:200px;border-radius:12px;background:linear-gradient(160deg,#1d1d1d,#060606);border:1px solid var(--hair);padding:18px;position:relative;overflow:hidden"><div style="font-size:11px;color:var(--mut)">hp</div><div style="font-size:24px;font-weight:600;margin-top:28px;line-height:1.1">Ship small.<br>Ship often.</div><div style="margin-top:12px;width:84px;height:24px;border-radius:12px;background:#fff"></div><div style="position:absolute;right:-30px;bottom:-40px;width:170px;height:170px;border-radius:50%;background:radial-gradient(circle,#3a3a3a,transparent 70%)"></div></div>
+<div class="btnrow"><div class="g">Restart</div><div class="w">Open preview</div></div></div>
+<div class="done">${I('check')}Task completed in 4m 12s</div>
+<div class="card" style="display:flex;align-items:center;gap:10px;padding:12px 14px"><span style="color:var(--mut)">${I('file')}</span><span style="flex:1;font-size:15px">Summary of the landing page changes</span>${I('chevR',18)}</div></div></div>`;
+const docWorking=()=>`<div class="scroll"><div class="doc">
+<div class="bubble">Write a streaming parser for the transcript files so the chat updates while the agent writes.</div>
+<div class="explored"><b>Explored</b> 8 files, 3 searches</div>
+<p>Reading the JSONL line by line with a scanner, then emitting one event per complete line.</p>
+<div class="peek"><div class="h"><span class="live"></span>Screen · Cursor · simple-api<span style="margin-left:auto">${I('chevR',16)}</span></div><pre><span style="color:#7fd0ff">● Edit</span> parser/stream.go
+  + sc := bufio.NewScanner(f)
+  + sc.Buffer(buf, 1&lt;&lt;20)
+<span style="color:#a4e08a">● Run</span> go test ./parser/...
+  ok  parser  0.412s</pre></div>
+<div class="working"><span class="orb"></span>Working · 1m 12s</div></div></div>`;
+
+const R=[];
+const S=(title,desc,frames)=>R.push(`<section><h2>${title}</h2><p>${desc}</p><div class="frames">${frames.map(([cap,ref,html])=>`<figure>${phone(html)}<figcaption><b>${cap}</b><span>${ref}</span></figcaption></figure>`).join('')}</div></section>`);
+
+S('Home','Large title, plain rows, no tab dock. The composer pill is how you start an agent from anywhere.',[
+['Workspaces','s01',homeHdr()+homeBody()+pill('Plan, ask, build...')],
+['Composer focused','s06',homeHdr()+homeBody()+`<div class="dim"></div>`+ccard({chips:chipsWs(),text:'Plan retry logic for the Go client. List every call site, then propose backoff and context cancel before changing code.'})+keyboard()],
+['Computers sheet, half','s09',homeHdr()+homeBody()+`<div class="dim"></div>`+sheet(430,shh('Computers')+`<div class="search">${I('search')}Search computers...</div><div class="ssec">Active</div>${srow('simple<small>Online · 5 agents · tailnet</small>',I('check'),'server')}<div class="ssec">More</div>${srow('devbox<small>Online · 1 agent</small>','','server')}${srow('Pair a computer<small>Run simpled pair on a Linux machine</small>',I('chevR'),'qr')}`)],
+['Workspace sheet, full','s07',homeHdr()+homeBody()+`<div class="dim"></div>`+sheet(62,shh('Workspace')+`<div class="search">${I('search')}Search workspaces...</div><div class="ssec">Active</div>${srow('simple-api<small>simple · ~/projects/simple-api</small>',I('check'),'folder')}<div class="ssec">Recents</div>${srow('halo<small>simple · ~/projects/halo</small>','','folder')}${srow('hp<small>devbox · ~/code/hp</small>','','folder')}<div class="ssec">More</div>${srow('dotfiles<small>simple · ~/dotfiles</small>','','folder')}${srow('notes<small>simple · ~/notes</small>','','folder')}${srow('infra<small>devbox · ~/code/infra</small>','','folder')}${srow('New folder on simple','','folderPlus')}`)],
+]);
+
+S('Agents','Every agent on every computer. Agents that need you sit on top with an amber dot.',[
+['All Agents','s13',hdr(['back'],['search','filter'])+agentsBody()+pill('Draft a task, message...')],
+['Composer focused, Auto mode','s14',hdr(['back'],['search','filter'])+agentsBody()+`<div class="dim"></div>`+ccard({chips:chipsWs('halo','codex','Codex'),text:'Add an offline queue so sends survive a dropped connection.',mode:'Auto',model:'GPT 5.6'})+keyboard()],
+['Agent picker in composer','new',hdr(['back'],['search','filter'])+agentsBody()+`<div class="dim"></div>`+ccard({chips:chipsWs('halo','codex','Codex'),text:'Add an offline queue so sends survive a dropped connection.',mode:'Auto',model:'GPT 5.6',caret:false})+`<div class="menu" data-anchor="agent" style="min-width:220px">${[['claude','Claude Code'],['codex','Codex'],['cursor','Cursor'],['opencode','OpenCode'],['fx','fx']].map(([g,n],i)=>`<div class="mi ${i==1?'sel':''}">${gl(g)}<span class="x">${n}</span>${i==1?I('check'):''}</div>`).join('')}</div>`+keyboard()],
+]);
+
+S('Chat','Document style, not bubbles: your prompt is the only bubble. Tool work folds into one line. Approvals and screen prompts are native cards.',[
+['Summary and table','s10, s11',chatHdr()+docRetry()+pill('Follow up...')],
+['Code cards','s12',chatHdr()+docCode()+pill('Follow up...')],
+['Changes and actions','s02',chatHdr()+docChanges()+pill('Follow up...')],
+['Approval and screen prompt','new',chatHdr()+docApproval()+pill('Follow up...')],
+['Dev server done','s04',chatHdr('Landing page copy pass','Cursor · hp')+docPreview()+pill('Follow up...')],
+['Working, live screen card','new',chatHdr('Streaming parser','Cursor · simple-api')+docWorking()+`<div class="botfade"></div><div class="cpill glass"><div class="ib">${I('plus')}</div><div class="ph">Queue a message...</div><div class="send" style="width:40px;height:40px">${I('stop')}</div></div>`],
+]);
+
+const thumbs=(n=4,sel=[0,1])=>`<div style="display:flex;gap:8px;padding:6px 16px 10px;overflow:hidden">${[...Array(n)].map((_,i)=>`<div style="width:84px;height:120px;border-radius:14px;flex:none;position:relative;background:linear-gradient(170deg,#262626,#0b0b0b);border:${sel.includes(i)?'2px solid #fff':'1px solid var(--hair)'}"><div style="position:absolute;inset:14px 10px auto;height:4px;border-radius:2px;background:#3a3a3a;box-shadow:0 10px 0 #333,0 20px 0 #2c2c2c,0 30px 0 #333"></div>${sel.includes(i)?`<div style="position:absolute;top:6px;left:6px;width:22px;height:22px;border-radius:50%;background:#fff;color:#000;font-size:13px;display:grid;place-items:center;font-weight:600">${sel.indexOf(i)+1}</div>`:`<div style="position:absolute;top:6px;left:6px;width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(255,255,255,.6)"></div>`}</div>`).join('')}</div>`;
+const att=`<div style="display:flex;gap:10px;margin:2px 0 10px">${[1,2].map(n=>`<div style="width:62px;height:62px;border-radius:14px;background:linear-gradient(160deg,#2a2a2a,#0d0d0d);border:1px solid var(--line);position:relative"><div style="position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;background:#3a3a3c;display:grid;place-items:center;box-shadow:var(--edge)">${I('x',13)}</div><div style="position:absolute;bottom:5px;left:6px;font-size:11px;color:var(--mut)">Image ${n}</div></div>`).join('')}</div>`;
+S('Composer and context','The composer card holds context chips, attachments, permission mode, model, mic and send.',[
+['Attachments','s20, s08',chatHdr()+docRetry()+`<div class="dim"></div>`+ccard({chips:chipsWs(),text:'In Image 1 the header overlaps the title. Fix the spacing to match Image 2.',attach:att,mode:'Ask',model:'Opus 4.8'})+keyboard()],
+['Context sheet','s03, s19',chatHdr()+docRetry()+`<div class="dim"></div>`+sheet(372,shh('Context')+thumbs()+`${srow('Photos','','image')}${srow('Screenshots',I('chevR'),'scan')}${srow('Camera','','camera')}${srow('Files on simple',I('chevR'),'file')}${srow('Current screen of this agent','','term')}<div style="padding:14px 16px"><div class="primary">Add 2</div></div>`)],
+['Mark up a screenshot','s21',`<div class="hdr" style="z-index:9">${circ('x')}${circ('trash')}<div class="sp"></div>${circ('check')}</div><div style="position:absolute;left:40px;right:40px;top:120px;height:330px;border-radius:18px;background:linear-gradient(170deg,#1f1f1f,#080808);border:1px solid var(--line);overflow:hidden"><div style="margin:22px 18px;height:8px;width:120px;border-radius:4px;background:#3a3a3a"></div><div style="margin:0 18px;height:28px;width:200px;border-radius:6px;background:#2d2d2d"></div><div style="margin:14px 18px;height:6px;width:240px;border-radius:3px;background:#2a2a2a;box-shadow:0 14px 0 #2a2a2a,0 28px 0 #262626"></div><svg viewBox="0 0 200 120" style="position:absolute;left:40px;top:30px;width:230px;height:130px"><path d="M30 60c0-30 50-45 100-38s60 40 30 60-110 20-125-5c-6-10-5-20 4-27" fill="none" stroke="#ff6467" stroke-width="3" stroke-linecap="round"/></svg><div style="position:absolute;left:250px;top:28px;width:24px;height:24px;border-radius:50%;background:#ff6467;color:#000;font-size:13px;font-weight:600;display:grid;place-items:center">1</div></div><div class="ccard glass" style="bottom:312px;padding:6px 6px 6px 14px;display:flex;align-items:center;gap:10px;border-radius:24px"><span style="width:22px;height:22px;border-radius:50%;background:#ff6467;color:#000;font-size:12px;font-weight:600;display:grid;place-items:center">1</span><span style="flex:1;font-size:17px">Title overlaps the header<span class="caret" style="display:inline-block;width:2px;height:20px;background:#fff;vertical-align:-4px"></span></span><div class="send">${I('check')}</div></div>`+keyboard()],
+['Slash commands','new',chatHdr()+docRetry()+`<div class="dim"></div>`+ccard({chips:chipsWs(),text:'/re',mode:'Ask',model:'Opus 4.8'})+`<div class="menu" style="left:12px;right:12px;bottom:452px">${[['/review','Review the current diff'],['/resume','Pick up an earlier session'],['/release-notes','Write notes for this change'],['/rewind','Go back to an earlier message']].map(([c,d],i)=>`<div class="mi tall ${i==0?'sel':''}"><span class="x"><span class="mono" style="font-size:15px">${c}</span><small>${d}</small></span></div>`).join('')}</div>`+keyboard()],
+['Voice','new',chatHdr()+docRetry()+`<div class="botfade"></div><div class="ccard glass" style="bottom:30px"><div class="chips">${chipsWs()}</div><div style="display:flex;align-items:center;gap:3px;height:54px;margin:8px 4px">${[6,14,22,30,18,10,26,34,20,12,8,16,28,22,14,6,10,24,32,18,12,20,8,14,26,16,10,6,4,4,4,4].map(h=>`<span style="width:4px;height:${h}px;border-radius:2px;background:${h>4?'#fff':'#444'}"></span>`).join('')}<span style="margin-left:auto;font-size:15px;color:var(--mut)" class="mono">0:07</span></div><div class="cbar"><div class="ib s">${I('x')}</div><div class="sp"></div><div style="font-size:14px;color:var(--mut)">Transcribed on this phone</div><div class="sp"></div><div class="send">${I('up')}</div></div></div>`],
+]);
+
+const modelBase=()=>chatHdr()+docRetry()+`<div class="dim"></div>`;
+const modelList=()=>shh('Model')+`<div class="search">${I('search')}Search</div><div class="ssec">Active</div>${srow('Opus 4.8<span class="q">High</span>',`<span class="v">${I('more')}${I('check')}</span>`)}<div class="ssec">More</div>${srow('Default<span class="q">From Claude Code settings</span>',`<span class="v">${I('more')}</span>`)}${srow('Sonnet 5<span class="q">Medium</span>',`<span class="v">${I('more')}</span>`)}${srow('Haiku 5<span class="q">Fast</span>',`<span class="v">${I('more')}</span>`)}${srow('Fable 5<span class="q">High</span>',`<span class="v">${I('more')}</span>`)}${srow('Opus 4.8 1M<span class="q">High</span>',`<span class="v">${I('more')}</span>`)}`;
+const stacked=(pop='')=>sheet(430,shh('Opus 4.8',`<div class="pillbtn">Done</div>`)+`${srow('Fast','<div class="toggle"></div>')}${srow('Effort',`<span class="v" data-a="effort">High${I('updown',16)}</span>`)}${srow('Thinking','<div class="toggle on"></div>')}<p style="margin:14px 20px;font-size:14px;color:var(--faint);line-height:1.45">Applies from the next message. Claude Code keeps the session.</p>`,'stack')+pop;
+S('Model and mode','Model is per agent. Its settings open as a second glass sheet on top of the first (glass on glass).',[
+['Model sheet','s18',modelBase()+sheet(62,modelList())],
+['Model settings, stacked','s16',modelBase()+sheet(62,modelList())+stacked()],
+['Effort menu','s17',modelBase()+sheet(62,modelList())+stacked(`<div class="menu" data-anchor="effort" style="min-width:170px">${['Low','Medium','High','Max'].map(e=>`<div class="mi ${e=='High'?'sel':''}"><span class="x">${e}</span>${e=='High'?I('check'):''}</div>`).join('')}</div>`)],
+['Permission mode menu','s08',chatHdr()+docRetry()+`<div class="dim"></div>`+ccard({chips:chipsWs(),text:'Run the full test suite and fix what fails.',mode:'Ask',caret:false})+`<div class="menu" data-anchor="mode" style="width:300px">${[['shield','Ask','Approve each command and edit',1],['eye','Plan','Read and plan, no changes',0],['bolt','Auto','Edits run, risky commands ask',0],['hand','Full control','Runs anything without asking',0]].map(([ic,n,d,s])=>`<div class="mi tall ${s?'sel':''}" ${n=='Full control'?'style="color:var(--del)"':''}>${I(ic)}<span class="x">${n}<small>${d}</small></span>${s?I('check'):''}</div>`).join('')}</div>`+keyboard()],
+]);
+
+S('Agent actions','Menus open on top of the control you pressed, covering it, and grow from its corner (down for top controls, up for bottom ones). Dialogs sit in the center.',[
+['Long press menu','s22',chatHdr()+docRetry()+`<div class="dim" style="background:rgba(0,0,0,.35)"></div><div class="menu" data-anchor="title" style="min-width:240px">${[['pin','Pin'],['pencil','Rename'],['mail','Mark as unread'],['archive','Archive']].map(([i,n])=>`<div class="mi">${I(i)}<span class="x">${n}</span></div>`).join('')}<div class="msep"></div>${[['copy','Copy session ID'],['share','Share transcript']].map(([i,n])=>`<div class="mi">${I(i)}<span class="x">${n}</span></div>`).join('')}<div class="msep"></div><div class="mi danger">${I('stop')}<span class="x">Stop agent</span></div></div>`],
+['Rename','s23',chatHdr()+docRetry()+`<div class="dim"></div><div class="dialog"><h3>Rename agent</h3><div class="field"><span class="selt">Add retry with backoff</span></div><div class="btns"><div class="secondary">Cancel</div><div class="primary">Rename</div></div></div>`+keyboard()],
+['Full control confirm','new',chatHdr()+docRetry()+`<div class="dim"></div><div class="dialog"><div style="width:44px;height:44px;border-radius:50%;margin:0 auto 12px;display:grid;place-items:center;background:rgba(255,100,103,.15);color:var(--del)">${I('hand')}</div><h3>Give Claude Code full control?</h3><p>It will run any command and edit any file in simple-api without asking. You can switch back at any time.</p><div class="btns"><div class="secondary">Cancel</div><div class="primary" style="background:var(--del)">Allow</div></div></div>`],
+]);
+
+const diffLine=(n,t,k=' ')=>`<div style="display:flex;background:${k=='+'?'rgba(47,197,143,.1)':k=='-'?'rgba(255,100,103,.1)':'transparent'}"><span style="width:38px;text-align:right;padding-right:10px;color:#555">${n}</span><span style="width:14px;color:${k=='+'?'var(--add)':k=='-'?'var(--del)':'#555'}">${k}</span><span style="white-space:pre">${t}</span></div>`;
+S('Changes and files','Diff summary like a pull request page, then per file. Files browse the host.',[
+['Diff summary','s05',hdr(['back'],['link','more'])+`<div class="scroll"><div class="lt" style="line-height:1.25">Add retry with backoff <span>simple-api</span></div><div style="display:flex;align-items:center;gap:8px;margin:0 20px;font-size:15px;color:var(--mut)"><span style="background:rgba(233,192,85,.14);color:var(--warn);border-radius:12px;padding:3px 10px">Uncommitted</span><span class="add">+251</span><span class="del">-7</span>· 6 files · main</div><div class="doc" style="margin-top:16px"><div class="card"><div class="ttl">Ready to commit</div><div class="sub">Tests passed 2m ago</div><div class="btnrow"><div class="g">Discard</div><div class="w">Commit and push</div></div></div></div><div class="sec">6 files</div>${[['retry.go','client',120,0],['http.go','client',18,6],['retry_test.go','client',96,0],['README.md','',9,1],['go.mod','',2,0],['config.go','sync',6,0]].map(([f,d,a,r])=>`<div class="row nl" style="height:50px"><span class="ri" style="width:26px">${I('chevR',18)}</span><span class="rl" style="font-size:16px">${f}<span>${d}</span></span><span class="rr mono" style="font-size:14px"><span class="add">+${a}</span><span class="del">-${r}</span></span></div>`).join('')}</div>`],
+['File diff','new',hdr(['back'],['more'],'http.go<small><span class="add">+18</span> <span class="del">-6</span> · client</small>')+`<div class="scroll"><div class="mono" style="font-size:12.5px;line-height:1.75;margin-top:6px"><div style="padding:6px 16px;color:var(--mut);background:#0d0d0d">@@ -38,9 +38,21 @@</div>${diffLine(38,'')}${diffLine(39,'func (c *Client) Do(req *Request) error {')}${diffLine(40,'  resp, err := c.http.Do(req.raw)','-')}${diffLine(41,'  if err != nil {','-')}${diffLine(42,'    return err','-')}${diffLine(43,'  }','-')}${diffLine(40,'  var resp *http.Response','+')}${diffLine(41,'  err := retry(req.ctx, c.policy, func() error {','+')}${diffLine(42,'    r, err := c.http.Do(req.raw)','+')}${diffLine(43,'    if err != nil {','+')}${diffLine(44,'      return err','+')}${diffLine(45,'    }','+')}${diffLine(46,'    if r.StatusCode >= 500 {','+')}${diffLine(47,'      return errRetry','+')}${diffLine(48,'    }','+')}${diffLine(49,'    resp = r','+')}${diffLine(50,'    return nil','+')}${diffLine(51,'  })','+')}${diffLine(52,'  if err != nil {')}${diffLine(53,'    return err')}${diffLine(54,'  }')}${diffLine(55,'  return decode(resp)')}${diffLine(56,'}')}<div style="padding:6px 16px;color:var(--mut);background:#0d0d0d;margin-top:8px">@@ -88,4 +100,6 @@</div>${diffLine(100,'func (c *Client) Close() error {')}${diffLine(101,'  c.cancel()','+')}${diffLine(102,'  return c.http.Close()')}</div></div>`],
+['Files','new',hdr(['back'],['search','more'],'simple-api<small>simple · main</small>')+`<div class="scroll"><div style="margin:4px 20px 8px;font-size:14px;color:var(--faint)" class="mono">~/projects/simple-api</div>${[['folder','client','4 items'],['folder','sync','3 items'],['folder','auth','2 items'],['file','go.mod','412 B'],['file','main.go','2.1 KB'],['file','README.md','3.4 KB'],['file','.gitignore','88 B']].map(([i,n,m])=>row(i,`${n}<span>${m}</span>`,'',i=='folder')).join('')}</div>`+pill('Ask about these files...')],
+['File viewer','new',hdr(['back'],['copy','more'],'retry.go<small>client · 120 lines</small>')+`<div class="scroll"><pre class="mono" style="font-size:12.5px;line-height:1.75;padding:6px 16px;color:#d8d8d8">${['<span class="kw">package</span> client','','<span class="kw">import</span> (','  <span class="st">"context"</span>','  <span class="st">"math/rand"</span>','  <span class="st">"time"</span>',')','','<span class="cm">// policy for HTTP retries</span>','<span class="kw">type</span> Policy <span class="kw">struct</span> {','  Base  time.Duration','  Max   time.Duration','  Tries <span class="kw">int</span>','}','','<span class="kw">func</span> <span class="fn">retry</span>(ctx context.Context, p Policy, f <span class="kw">func</span>() error) error {','  d := p.Base','  <span class="kw">for</span> i := <span class="nm">0</span>; i &lt; p.Tries; i++ {','    err := <span class="fn">f</span>()','    <span class="kw">if</span> err == <span class="kw">nil</span> {','      <span class="kw">return</span> <span class="kw">nil</span>','    }','    <span class="kw">select</span> {','    <span class="kw">case</span> &lt;-ctx.<span class="fn">Done</span>():','      <span class="kw">return</span> ctx.<span class="fn">Err</span>()','    <span class="kw">case</span> &lt;-time.<span class="fn">After</span>(<span class="fn">jitter</span>(d)):','    }','    d = <span class="fn">min</span>(d*<span class="nm">2</span>, p.Max)','  }','  <span class="kw">return</span> errGaveUp','}'].map((l,i)=>`<span style="color:#555;display:inline-block;width:28px">${i+1}</span>${l}`).join('\n')}</pre></div>`],
+]);
+
+const keys=['Esc','Tab','↑','↓','←','→','y','n','Ctrl C','Enter'];
+S('Screen','No terminal. When no card fits, you read the agent screen and press keys.',[
+['Agent screen','new',hdr(['back'],['grid','more'],'Screen<small>Codex · halo</small>')+`<div class="scroll"><pre class="mono" style="font-size:12px;line-height:1.6;padding:6px 16px;color:#cfcfcf;white-space:pre-wrap"><span style="color:#7fd0ff">╭ Codex</span> <span style="color:#666">(gpt 5.6 medium)</span>
+<span style="color:#666">│</span> ~/projects/halo
+
+<span style="color:#a4e08a">› </span>add an offline queue so sends
+  survive a dropped connection
+
+<span style="color:#ffcf70">? Do you trust the files in this folder?</span>
+
+  <span style="color:#fff;background:#2a2a2a"> 1. Yes, for this session      </span>
+    2. Yes, and remember
+    3. No, exit
+
+<span style="color:#666">  ↑↓ to move · enter to select</span></pre></div><div class="botfade"></div><div style="position:absolute;left:12px;right:12px;bottom:96px;display:flex;flex-wrap:wrap;gap:6px;z-index:8">${keys.map(k=>`<div class="glass" style="height:38px;min-width:${k.length>2?62:46}px;padding:0 10px;border-radius:12px;display:grid;place-items:center;font-size:15px" ${k=='Enter'?'':''}>${k}</div>`).join('')}</div><div class="cpill glass"><div class="ib">${I('plus')}</div><div class="ph">Type into the screen...</div><div class="send" style="width:40px;height:40px">${I('up')}</div></div>`],
+['Pane map','new',chatHdr()+docRetry()+`<div class="dim"></div><div class="menu" style="left:24px;right:24px;top:250px;padding:14px;border-radius:28px"><div style="display:flex;align-items:center;margin-bottom:12px;font-size:16px;font-weight:600">simple-api<span style="margin-left:8px;font-weight:400;color:var(--mut);font-size:14px">simple · 4 panes</span></div><div style="display:grid;grid-template-columns:1.3fr 1fr;grid-template-rows:96px 96px;gap:8px">${[['claude','Claude Code','Needs you','warn',1,'span 2'],['cursor','Cursor','Working','fg',0,''],['term','go test -run Retry','Idle','mut',0,'']].map(([g,n,s,c,f,sp])=>`<div style="grid-row:${sp};border-radius:16px;padding:12px;background:${f?'rgba(255,255,255,.12)':'rgba(0,0,0,.35)'};box-shadow:${f?'inset 0 0 0 1.5px #fff':'inset 0 0 0 .5px rgba(255,255,255,.1)'};display:flex;flex-direction:column;gap:8px">${g=='term'?`<span class="glyph">${I('term',14)}</span>`:gl(g)}<div style="font-size:15px;font-weight:500">${n}</div><div style="font-size:13px;color:var(--${c});display:flex;align-items:center;gap:6px;margin-top:auto"><span style="width:7px;height:7px;border-radius:50%;background:var(--${c})"></span>${s}</div></div>`).join('')}</div><div style="display:flex;gap:8px;margin-top:12px"><div class="secondary" style="flex:1;height:42px;font-size:15px">New agent here</div><div class="secondary" style="flex:1;height:42px;font-size:15px">Open screen</div></div></div>`],
+]);
+
+const slider=(l,v,pct)=>`<div style="margin:0 20px;padding:10px 0;border-bottom:1px solid var(--hair)"><div style="display:flex;font-size:16px"><span style="flex:1">${l}</span><span style="color:var(--mut)" class="mono">${v}</span></div><div style="height:6px;border-radius:3px;background:rgba(255,255,255,.12);margin-top:10px;position:relative"><div style="width:${pct}%;height:100%;border-radius:3px;background:#fff"></div><div style="position:absolute;left:calc(${pct}% - 11px);top:-8px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.5)"></div></div></div>`;
+S('Setup, settings and the rest','Same parts everywhere: glass circles, large titles, plain rows, sheets with search, white pill buttons.',[
+['Welcome','new',`<div style="position:absolute;inset:0;padding:150px 28px 0"><div style="width:64px;height:64px;border-radius:20px;background:#fff;display:grid;place-items:center;color:#000;font-size:30px;font-weight:600">s</div><div style="font-size:30px;font-weight:600;margin-top:28px;line-height:1.15;letter-spacing:-.02em">Your coding agents,<br>on your phone.</div><p style="font-size:17px;color:var(--mut);margin-top:14px;line-height:1.45">simple talks to your own Linux computers over your tailnet. No cloud, no terminal.</p><div style="margin-top:28px;font-size:15px;color:var(--faint)">On your computer, run</div><div class="mono" style="margin-top:8px;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:14px;font-size:13px;display:flex;align-items:center">curl -fsSL simple.sh/install | sh<span style="margin-left:auto;color:var(--mut)">${I('copy',16)}</span></div><div class="mono" style="margin-top:8px;border:1px solid var(--line);background:var(--card);border-radius:14px;padding:14px;font-size:13px">simpled pair</div></div><div style="position:absolute;left:20px;right:20px;bottom:44px"><div class="primary">Scan pairing code</div><div style="text-align:center;margin-top:16px;font-size:15px;color:var(--mut)">Enter code instead</div></div>`],
+['Pair','new',`<div style="position:absolute;inset:0;background:radial-gradient(circle at 50% 40%,#1a1a1a,#000 70%)"></div>`+hdr(['x'],['bolt'])+`<div style="position:absolute;left:75px;top:230px;width:240px;height:240px;z-index:2">${['top:0;left:0;border-width:3px 0 0 3px;border-radius:26px 0 0 0','top:0;right:0;border-width:3px 3px 0 0;border-radius:0 26px 0 0','bottom:0;left:0;border-width:0 0 3px 3px;border-radius:0 0 0 26px','bottom:0;right:0;border-width:0 3px 3px 0;border-radius:0 0 26px 0'].map(s=>`<div style="position:absolute;width:52px;height:52px;border:solid #fff;${s}"></div>`).join('')}<div style="position:absolute;inset:40px;opacity:.55;color:#fff">${I('qr',160)}</div></div><div style="position:absolute;top:500px;left:0;right:0;text-align:center;font-size:17px;z-index:2">Point at the code from simpled pair</div><div style="position:absolute;top:528px;left:40px;right:40px;text-align:center;font-size:15px;color:var(--mut);line-height:1.4;z-index:2">The code carries the computer address and its certificate, so nothing else is needed.</div><div class="glass" style="position:absolute;left:20px;right:20px;bottom:44px;height:50px;border-radius:25px;display:grid;place-items:center;font-size:17px;z-index:2">Enter code instead</div>`],
+['Settings, appearance','new',homeHdr()+homeBody()+`<div class="dim"></div>`+sheet(62,shh('Appearance')+`<div style="margin:0 16px 8px;border-radius:22px;height:130px;position:relative;overflow:hidden;background:linear-gradient(135deg,#2a2a2a 0%,#050505 60%),#111"><div style="position:absolute;left:14px;top:16px;width:160px;height:10px;border-radius:5px;background:#444;box-shadow:0 18px 0 #333,0 36px 0 #3a3a3a"></div><div class="glass" style="position:absolute;left:12px;right:12px;bottom:12px;height:46px;border-radius:23px;display:flex;align-items:center;padding:0 14px;color:var(--faint);font-size:15px">Preview of the glass</div></div><div style="display:flex;margin:6px 16px 4px;padding:4px;border-radius:22px;background:rgba(255,255,255,.08)">${['Dark','Light','System'].map((m,i)=>`<div style="flex:1;height:36px;border-radius:18px;display:grid;place-items:center;font-size:15px;${i==0?'background:rgba(255,255,255,.16);box-shadow:var(--edge)':''}">${m}</div>`).join('')}</div>${slider('Blur','28',56)}${slider('Tint','8%',30)}${slider('Lens','12',40)}${slider('Brightness','1.08',54)}${slider('Contrast','1.00',50)}${slider('Saturation','1.70',70)}${srow('Light edge','<div class="toggle on"></div>')}${srow('Reduce transparency','<div class="toggle"></div>')}${srow('Font<small>Geist, or fonts from your computer</small>',`<span class="v">Geist${I('chevR',18)}</span>`)}`)],
+['Usage','new',hdr(['back'],['refresh'])+`<div class="scroll"><div class="lt">Usage</div><div class="sec" style="margin-top:4px">This week</div>${[['claude','Claude Code','Max plan',72,'Resets Thu'],['codex','Codex','Pro plan',38,'Resets in 2 days'],['cursor','Cursor','Pro plan',54,'Resets Nov 30'],['opencode','OpenCode','API key',12,'$3.40 this month']].map(([g,n,p,v,r])=>`<div style="margin:0 20px;padding:14px 0;border-bottom:1px solid var(--hair)"><div style="display:flex;align-items:center;gap:10px">${gl(g)}<span style="font-size:17px;flex:1">${n}<span style="color:var(--faint);font-size:14px;margin-left:6px">${p}</span></span><span class="mono" style="font-size:15px">${v}%</span></div><div style="height:6px;border-radius:3px;background:rgba(255,255,255,.1);margin-top:10px"><div style="width:${v}%;height:100%;border-radius:3px;background:${v>70?'var(--warn)':'#fff'}"></div></div><div style="font-size:14px;color:var(--faint);margin-top:6px">${r}</div></div>`).join('')}<div class="sec">Today</div><div style="display:flex;align-items:flex-end;gap:6px;height:110px;margin:6px 20px">${[30,52,18,70,44,90,62,36,58,80,24,48].map(h=>`<div style="flex:1;height:${h}%;border-radius:5px;background:rgba(255,255,255,.${h>60?'7':'25'})"></div>`).join('')}</div></div>`],
+['Lock screen approval','new',`<div style="position:absolute;inset:0;background:radial-gradient(circle at 30% 20%,#262626,#000 65%)"></div><div style="position:absolute;top:96px;left:0;right:0;text-align:center;z-index:2"><div style="font-size:17px;color:var(--mut)">Wednesday, 4 November</div><div style="font-size:84px;font-weight:600;letter-spacing:-.03em;line-height:1.1">9:41</div></div><div class="glass" style="position:absolute;left:12px;right:12px;top:330px;border-radius:26px;padding:14px;z-index:2"><div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mut)"><span style="width:20px;height:20px;border-radius:6px;background:#fff;color:#000;display:grid;place-items:center;font-size:11px;font-weight:700">s</span>simple · now</div><div style="font-size:16px;font-weight:600;margin-top:8px">Claude Code wants to run a command</div><div class="mono" style="font-size:13px;color:var(--mut);margin-top:4px">go test ./client/... -race</div><div class="btnrow"><div class="g">Deny</div><div class="w">Allow</div></div></div><div class="glass" style="position:absolute;left:12px;right:12px;top:520px;border-radius:22px;padding:12px 14px;z-index:2;display:flex;gap:10px;align-items:center"><span style="width:20px;height:20px;border-radius:6px;background:#fff;color:#000;display:grid;place-items:center;font-size:11px;font-weight:700">s</span><div style="flex:1"><div style="font-size:14px">Connected to 2 computers</div><div style="font-size:13px;color:var(--mut)">Listening for approvals. Uses a little battery.</div></div></div>`],
+['Offline','new',chatHdr()+docRetry()+`<div class="banner glass"><span style="width:8px;height:8px;border-radius:50%;background:var(--warn)"></span>Reconnecting to simple<span style="color:var(--mut)">· 2s</span></div>`+pill('Sends when back online')],
+]);
+
+document.getElementById('board').innerHTML=R.join('');
+document.querySelectorAll('.menu[data-anchor]').forEach(m=>{const ph=m.closest('.phone'),t=ph.querySelector(`[data-a="${m.dataset.anchor}"]`);if(!t)return;const p=ph.getBoundingClientRect(),r=t.getBoundingClientRect(),pad=6;
+ const right=r.left-p.left>p.width/2,low=r.top-p.top>p.height*0.4;
+ if(right)m.style.right=Math.max(8,p.right-r.right-pad)+'px';else m.style.left=Math.max(8,r.left-p.left-pad)+'px';
+ if(low)m.style.bottom=(p.bottom-r.bottom-pad)+'px';else m.style.top=(r.top-p.top-pad)+'px';
+ m.style.transformOrigin=(low?'bottom ':'top ')+(right?'right':'left');
+ const mr=m.getBoundingClientRect();if(mr.right>p.right-8){m.style.left='auto';m.style.right='8px'}});
+</script>
+</body>
+</html>

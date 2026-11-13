@@ -1,0 +1,10 @@
+{
+  "ev": "screen",
+  "seq": 1101,
+  "d": {
+    "id": "t4",
+    "text": "hello world",
+    "rows": 24,
+    "cols": 80
+  }
+}

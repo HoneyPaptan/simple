@@ -1,0 +1,12 @@
+{
+  "id": "m1",
+  "role": "tool",
+  "ts": 1700000002000,
+  "tool": {
+    "name": "Read",
+    "summary": "Read client.go",
+    "input": "{\"file_path\":\"client.go\"}",
+    "output": "package main",
+    "status": "ok"
+  }
+}

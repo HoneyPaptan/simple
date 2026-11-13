@@ -1,0 +1,15 @@
+{
+  "ev": "transcript.append",
+  "seq": 1100,
+  "d": {
+    "id": "t4",
+    "messages": [
+      {
+        "id": "m1",
+        "role": "user",
+        "ts": 1700000000000,
+        "text": "Run tests"
+      }
+    ]
+  }
+}

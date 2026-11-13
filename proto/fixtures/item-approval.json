@@ -1,0 +1,11 @@
+{
+  "id": "i_abc",
+  "agent": "t4",
+  "kind": "approval",
+  "title": "Clean build",
+  "command": "npm run build",
+  "tool": "Bash",
+  "created_ms": 1700000003000,
+  "read": false,
+  "resolved": false
+}

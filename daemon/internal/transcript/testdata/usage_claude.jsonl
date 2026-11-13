@@ -1,0 +1,1 @@
+{"type":"assistant","uuid":"u2","timestamp":"2026-01-15T12:00:00.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Done"}],"usage":{"input_tokens":100,"output_tokens":50,"cache_creation_input_tokens":10,"cache_read_input_tokens":20},"total_cost_usd":0.0012}}

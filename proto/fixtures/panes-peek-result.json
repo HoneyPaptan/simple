@@ -1,0 +1,8 @@
+{
+  "peeks": [
+    {
+      "id": "t4",
+      "text": "go test ./...\nPASS"
+    }
+  ]
+}

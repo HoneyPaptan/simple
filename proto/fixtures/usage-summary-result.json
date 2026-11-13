@@ -1,0 +1,60 @@
+{
+  "days": 7,
+  "today": {
+    "input": 0,
+    "output": 0,
+    "cache_read": 0,
+    "cache_write": 0
+  },
+  "period": {
+    "input": 300,
+    "output": 130,
+    "cache_read": 70,
+    "cache_write": 15,
+    "cost_usd": 0.0012
+  },
+  "daily": [
+    {
+      "day": "2026-01-09",
+      "input": 0,
+      "output": 0,
+      "cache_read": 0,
+      "cache_write": 0
+    },
+    {
+      "day": "2026-01-15",
+      "input": 100,
+      "output": 50,
+      "cache_read": 20,
+      "cache_write": 10,
+      "cost_usd": 0.0012
+    }
+  ],
+  "agents": [
+    {
+      "id": "claude",
+      "kind": "claude",
+      "title": "Claude",
+      "has_data": true,
+      "total": {
+        "input": 100,
+        "output": 50,
+        "cache_read": 20,
+        "cache_write": 10,
+        "cost_usd": 0.0012
+      }
+    },
+    {
+      "id": "codex",
+      "kind": "codex",
+      "title": "Codex",
+      "has_data": false,
+      "total": {
+        "input": 0,
+        "output": 0,
+        "cache_read": 0,
+        "cache_write": 0
+      }
+    }
+  ]
+}

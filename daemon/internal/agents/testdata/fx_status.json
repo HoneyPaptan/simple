@@ -1,0 +1,1 @@
+{"kind":"status","model":"grok-4.7","effort":"auto","permission_mode":"auto","mode":"auto","modes":[{"id":"auto","name":"Auto"},{"id":"ask","name":"Ask"},{"id":"full-access","name":"Full access"}],"workspace":"/tmp/demo"}

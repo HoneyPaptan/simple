@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+set -euo pipefail
+BOX=${SIMPLE_BOX:-simple-build}
+D=${SIMPLE_BOX_DIR:-simple}
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+KEYS=${SIMPLE_KEYS:-$HOME/.config/simple-keys}
+BT=${SIMPLE_BUILD_TOOLS:-$HOME/Android/Sdk/build-tools/36.0.0}
+ib() { INSTABOX_API_KEY="$(cat "$HOME/.config/instabox/api-key")" INSTABOX_NO_TELEMETRY=1 instabox "$@"; }
+rsh=$(mktemp); trap 'rm -f "$rsh"' EXIT
+printf '#!/bin/sh\nshift\nexec env INSTABOX_API_KEY="$(cat "$HOME/.config/instabox/api-key")" INSTABOX_NO_TELEMETRY=1 instabox ssh %s -- "$@"\n' "$BOX" > "$rsh"; chmod +x "$rsh"
+ENV='export SIMPLE_ON_BOX=1 JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-amd64 ANDROID_HOME=/usr/local/lib/android/sdk PATH=/usr/lib/jvm/temurin-21-jdk-amd64/bin:$HOME/go/bin:$PATH GOTOOLCHAIN=auto'
+wake() { ib resume "$BOX" >/dev/null 2>&1 || ib wake "$BOX" >/dev/null 2>&1 || true; }
+ssh_ok() { [ -n "${SSH_OK:-}" ] || { ib ssh "$BOX" -- true </dev/null >/dev/null 2>&1 && SSH_OK=1 || SSH_OK=0; }; [ "$SSH_OK" = 1 ]; }
+put_exec() {
+  local tmp; tmp=$(mktemp -d)
+  (cd "$ROOT" && git ls-files -co --exclude-standard | grep -v -e '^re/' -e '^progress' -e '^daemon/bin/' -e '^local.properties$' | tar -czf - -T -) | base64 -w0 | split -b 900000 -d -a 4 - "$tmp/p"
+  ib exec "$BOX" -- "rm -rf ~/$D.up && mkdir ~/$D.up" </dev/null
+  for f in "$tmp"/p*; do ib exec "$BOX" --stdin -- "cat > ~/$D.up/$(basename "$f")" < "$f"; done
+  ib exec "$BOX" --timeout 300 -- "rm -rf ~/$D.new && mkdir ~/$D.new && cat ~/$D.up/p* | base64 -d | tar -xzf - -C ~/$D.new && rsync -a --delete --exclude build/ --exclude .gradle/ --exclude .kotlin/ --exclude local.properties ~/$D.new/ ~/$D/" </dev/null
+  rm -rf "$tmp"
+}
+sync_up() {
+  if ssh_ok; then
+    rsync -az --delete -e "$rsh" --exclude .git --exclude re --exclude progress --exclude build/ --exclude .gradle/ --exclude .kotlin/ --exclude 'daemon/bin/' --exclude local.properties "$ROOT/" "$BOX:$D/"
+  else
+    put_exec
+  fi
+}
+on_box() {
+  local c="$ENV; exec 9>~/.simple-box.lock; flock -w 360 9 || { echo 'box busy: another build held the lock for 6 minutes'; exit 75; }; cd $D && { $*
+} 9>&-"
+  if ssh_ok; then ib ssh "$BOX" -- "$c"; else ib exec "$BOX" --timeout 600 -- "$c" </dev/null; fi
+}
+pull() {
+  if ssh_ok; then ib ssh "$BOX" -- "cat $D/$1" > "$2"; return; fi
+  local n i; n=$(ib exec "$BOX" -- "stat -c %s $D/$1" </dev/null); : > "$2"
+  for ((i = 0; i * 600000 < n; i++)); do
+    ib exec "$BOX" -- "dd if=$D/$1 bs=600000 skip=$i count=1 2>/dev/null | base64 -w0" </dev/null | base64 -d >> "$2"
+  done
+}
+sign() {
+  local in=$1 out=$2 p; p=$(cat "$KEYS/pass")
+  "$BT/zipalign" -f -p 4 "$in" "$out.aligned"
+  "$BT/apksigner" sign --ks "$KEYS/release.jks" --ks-key-alias simple --ks-pass "pass:$p" --key-pass "pass:$p" --out "$out" "$out.aligned"
+  rm -f "$out.aligned" "$out.idsig"
+}
+cmd=${1:-help}; shift || true
+case "$cmd" in
+  sync) wake; sync_up ;;
+  pull) wake; pull "$1" "$2" ;;
+  run) wake; sync_up; on_box "$*" ;;
+  apk)
+    wake; sync_up
+    on_box "cd app && ./gradlew --console=plain -q assembleRelease 2>&1 | tail -60"
+    mkdir -p "$ROOT/dist"
+    mkdir -p "$ROOT/dist/release"
+    u=$(on_box "ls app/build/outputs/apk/release/*unsigned*.apk 2>/dev/null | head -1")
+    [ -n "$u" ] && pull "$u" "$ROOT/dist/release/$(basename "$u")" && u="$ROOT/dist/release/$(basename "$u")"
+    [ -n "$u" ] || { echo "no apk"; exit 1; }
+    sign "$u" "$ROOT/dist/simple.apk"
+    ls -l "$ROOT/dist/simple.apk" ;;
+  check) wake; sync_up; on_box "./scripts/check $*" ;;
+  *) echo "usage: scripts/box sync | run <cmd> | pull <box path> <local file> | apk | check" ;;
+esac

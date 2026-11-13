@@ -1,0 +1,13 @@
+{
+  "branch": "main",
+  "ahead": 0,
+  "behind": 0,
+  "files": [
+    {
+      "path": "README.md",
+      "status": "M",
+      "add": 1,
+      "del": 0
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+~/projects/simple                                                                                                                                                                              18:14:01
+❯ cursor-agent
+
+
+  Cursor Agent
+  v2026.11.05-86047df
+  Tip: Use subagents to parallelize work and preserve context.
+
+
+  List the files in the scripts folder.
+
+
+    Globbed "*" in scripts
+    Found 4 files
+
+  $ find /home/simple/projects/simple/scripts -type f -o -type d | sort 3.6s
+    … 4 output lines hidden · ctrl+o to expand
+    /home/simple/projects/simple/scripts/hooks/pre-commit
+    /home/simple/projects/simple/scripts/release
+
+  Contents of scripts/:
+
+  ┌──────────────────┬──────┐
+  │ Path             │ Type │
+  ├──────────────────┼──────┤
+  │ box              │ file │
+  ├──────────────────┼──────┤
+  │ check            │ file │
+  ├──────────────────┼──────┤
+  │ release          │ file │
+  ├──────────────────┼──────┤
+  │ hooks/pre-commit │ file │
+  └──────────────────┴──────┘
+
+  There is also a hooks/ subdirectory with the pre-commit hook. AGENTS.md mentions build and install under scripts; those are not present in this listing.
+
+
+
+
+  → Add a follow-up
+
+
+  Composer 2.5 · 7.6%                                                                                                                                                                   Run Everything
+  ~/projects/simple · main

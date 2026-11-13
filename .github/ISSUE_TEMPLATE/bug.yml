@@ -1,0 +1,74 @@
+name: Bug report
+description: Something in the app or simpled does not work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. A short report with the steps and versions below is usually enough to find the cause.
+        For security problems, please do not open an issue. Follow SECURITY.md instead.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run simpled pair on the computer
+        2. Scan the code in the app
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: simpled
+    attributes:
+      label: simpled version
+      description: Output of `simpled version`
+    validations:
+      required: true
+  - type: input
+    id: app
+    attributes:
+      label: App version
+      description: Settings, About in the app
+  - type: dropdown
+    id: os
+    attributes:
+      label: Computer OS
+      options:
+        - Linux
+        - Windows
+        - macOS
+    validations:
+      required: true
+  - type: input
+    id: runtime
+    attributes:
+      label: herdr-core or herdr version
+      description: Output of `hc --version` or `herdr --version`
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Agent
+      multiple: true
+      options:
+        - Claude Code
+        - OpenCode
+        - Cursor
+        - Codex
+        - Shell
+        - Not agent specific
+  - type: input
+    id: phone
+    attributes:
+      label: Phone and Android version
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Daemon logs (`journalctl --user -u simpled -n 100` on Linux). Please remove anything private first.

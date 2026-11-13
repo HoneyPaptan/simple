@@ -1,0 +1,15 @@
+{
+  "ev": "inbox.add",
+  "seq": 1102,
+  "d": {
+    "id": "i_abc",
+    "agent": "t4",
+    "kind": "approval",
+    "title": "Bash",
+    "command": "go test ./...",
+    "tool": "Bash",
+    "created_ms": 1700000003000,
+    "read": false,
+    "resolved": false
+  }
+}

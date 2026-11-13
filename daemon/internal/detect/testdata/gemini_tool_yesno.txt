@@ -1,0 +1,5 @@
+Allow execution of: npm test
+
+This command will run in the project directory.
+
+Continue? (y/N)

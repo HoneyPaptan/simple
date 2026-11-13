@@ -1,0 +1,5 @@
+Crush wants permission to edit:
+
+  src/main.rs
+
+Allow? [y/n]

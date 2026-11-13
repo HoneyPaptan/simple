@@ -1,0 +1,5 @@
+copilot wants to run this command in your shell:
+
+  git status
+
+Allow? [y/N]

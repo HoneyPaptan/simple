@@ -1,0 +1,13 @@
+{
+  "host": {
+    "id": "h_deadbeef",
+    "name": "simple",
+    "version": "0.1.0",
+    "epoch": "e_abc123",
+    "hc": "0.1.17",
+    "linger": true
+  },
+  "seq": 1042,
+  "replay": true,
+  "snapshot": null
+}

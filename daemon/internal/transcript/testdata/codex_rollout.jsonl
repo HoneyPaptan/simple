@@ -1,0 +1,6 @@
+{"timestamp":"2026-01-01T00:00:00Z","type":"session_meta","payload":{"meta":{"id":"00000000-0000-0000-0000-000000000001","timestamp":"2026-01-01T00:00:00Z","cwd":"/tmp","originator":"codex","cli_version":"0.0.0"}}}
+{"timestamp":"2026-01-01T00:00:01Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Plan the cache layer"}]}}
+{"timestamp":"2026-01-01T00:00:02Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Here is a short plan."}]}}
+{"timestamp":"2026-01-01T00:00:03Z","type":"event_msg","payload":{"type":"user_message","message":"Follow up question"}}
+{"timestamp":"2026-01-01T00:00:04Z","type":"event_msg","payload":{"type":"agent_message","message":"Answering the follow up."}}
+{"timestamp":"2026-01-01T00:00:05Z","type":"token_usage_record","payload":{"usage":{"input_tokens":200,"cached_input_tokens":50,"cache_write_input_tokens":5,"output_tokens":80,"reasoning_output_tokens":0,"total_tokens":335}}}

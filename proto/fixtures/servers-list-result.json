@@ -1,0 +1,10 @@
+{
+  "servers": [
+    {
+      "port": 8080,
+      "pid": 4242,
+      "command": "python3",
+      "cwd": "/tmp/workspace"
+    }
+  ]
+}

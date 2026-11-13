@@ -1,0 +1,18 @@
+{
+  "kinds": {
+    "claude": true,
+    "codex": false,
+    "cursor": true,
+    "opencode": true,
+    "fx": true,
+    "shell": true,
+    "gemini": true,
+    "qwen": false,
+    "copilot": false,
+    "amp": false,
+    "goose": false,
+    "crush": false,
+    "aider": false,
+    "kimi": false
+  }
+}

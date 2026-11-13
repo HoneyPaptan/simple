@@ -1,0 +1,3 @@
+{"type":"user","uuid":"u1","timestamp":"2026-11-08T10:00:00Z","message":{"role":"user","content":"fix the bug"}}
+{"type":"assistant","uuid":"a1","timestamp":"2026-11-08T10:00:02Z","message":{"role":"assistant","content":[{"type":"thinking","thinking":"  Look at main.go first.  ","signature":"x"},{"type":"thinking","thinking":"","signature":"y"},{"type":"text","text":"Checking."}]}}
+{"type":"user","uuid":"u2","timestamp":"2026-11-08T10:00:05Z","message":{"role":"user","content":[{"type":"text","text":"[Request interrupted by user for tool use]"}]}}

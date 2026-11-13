@@ -1,0 +1,17 @@
+{
+  "id": "t4",
+  "runtime": "hc",
+  "kind": "claude",
+  "title": "Fix auth bug",
+  "cwd": "/home/dev/project/src",
+  "workspace": "/home/dev/project",
+  "status": "working",
+  "started_ms": 1700000000000,
+  "updated_ms": 1700000001000,
+  "pinned": false,
+  "unread": false,
+  "context": {
+    "used": 48000,
+    "window": 200000
+  }
+}

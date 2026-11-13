@@ -1,0 +1,19 @@
+{
+  "tabs": [
+    {
+      "id": "w1:t1",
+      "label": "api",
+      "panes": [
+        {
+          "id": "h:w1:p1",
+          "runtime": "herdr",
+          "workspace": "/home/dev/simple",
+          "tab": "w1:t1",
+          "title": "Claude",
+          "kind": "claude",
+          "status": "working"
+        }
+      ]
+    }
+  ]
+}

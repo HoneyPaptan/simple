@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+ROOT=$PWD
+ver=${1:-}
+if [ -z "$ver" ]; then
+	echo "usage: scripts/release <version>" >&2
+	exit 2
+fi
+if ! printf '%s' "$ver" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
+	echo "version must look like 0.1.0" >&2
+	exit 2
+fi
+out="$ROOT/dist/$ver"
+rm -rf "$out"
+mkdir -p "$out"
+ldflags="-s -w -X main.version=$ver"
+build_one() {
+	local goos=$1 goarch=$2 name=$3
+	(
+		cd daemon
+		GOOS=$goos GOARCH=$goarch go build -trimpath -ldflags "$ldflags" -o "$out/$name" ./cmd/simpled
+	)
+}
+for spec in linux:amd64 linux:arm64 darwin:amd64 darwin:arm64 windows:amd64 windows:arm64; do
+	goos=${spec%%:*}
+	goarch=${spec#*:}
+	name="simpled-$goos-$goarch"
+	if [ "$goos" = windows ]; then
+		name="${name}.exe"
+	fi
+	echo "== simpled $goos $goarch"
+	build_one "$goos" "$goarch" "$name"
+done
+(
+	cd "$out"
+	sha256sum simpled-* > SHA256SUMS
+)
+cp install.sh install.ps1 "$out/"
+(
+	cd "$out"
+	sha256sum install.sh install.ps1 >> SHA256SUMS
+)
+echo "== release apk"
+./scripts/box apk
+cp "$ROOT/dist/simple.apk" "$out/simple.apk"
+apk_size=$(stat -c %s "$out/simple.apk")
+echo ""
+echo "sizes (README goals: APK < 8 MiB, daemon < 10 MiB each):"
+for f in "$out"/simpled-*; do
+	[ -f "$f" ] || continue
+	s=$(stat -c %s "$f")
+	echo "  $(basename "$f")  $s bytes"
+	[ "$s" -lt 10485760 ] || { echo "daemon over 10 MiB budget" >&2; exit 1; }
+done
+echo "  simple.apk           $apk_size bytes"
+[ "$apk_size" -lt 8388608 ] || { echo "apk over 8 MiB budget" >&2; exit 1; }
+echo ""
+echo "create release (not run automatically):"
+echo "  gh release create v$ver \\"
+echo "    --repo HoneyPaptan/simple \\"
+echo "    --title v$ver \\"
+echo "    dist/$ver/simpled-linux-amd64 \\"
+echo "    dist/$ver/simpled-linux-arm64 \\"
+echo "    dist/$ver/simpled-darwin-amd64 \\"
+echo "    dist/$ver/simpled-darwin-arm64 \\"
+echo "    dist/$ver/simpled-windows-amd64.exe \\"
+echo "    dist/$ver/simpled-windows-arm64.exe \\"
+echo "    dist/$ver/install.ps1 \\"
+echo "    dist/$ver/simple.apk \\"
+echo "    dist/$ver/SHA256SUMS \\"
+echo "    dist/$ver/install.sh"

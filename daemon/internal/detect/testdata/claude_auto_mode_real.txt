@@ -1,0 +1,19 @@
+
+ ▐▛███▛█   Claude Code v2.1.319
+▝▜██████▀  Opus 5.5 with high effort · Claude Team
+ ▝▝   ▝▝   ~/projects/simple
+
+⚠ 1 MCP server needs authentication · run /mcp
+
+  Get to finished work sooner with Opus 5.5. Switch anytime with /model.
+
+● Your organization may apply global configuration to Claude Code. These settings are centrally managed by your IT administrator.
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Make auto mode your default permission mode?
+
+   Auto mode lets Claude handle permission prompts automatically. Claude checks each tool call for risky actions and prompt injection before executing, runs the ones it assesses as lower-risk, and
+   blocks the rest.
+
+   ❯ Yes, set auto mode as my default permission mode
+     No, keep bypass permissions

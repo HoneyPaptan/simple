@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+if [ -z "${SIMPLE_ON_BOX:-}" ] && { [ -n "${SIMPLE_BOX:-}" ] || [ -f "$HOME/.config/instabox/api-key" ]; }; then
+  exec ./scripts/box check "$@"
+fi
+fail() { echo "check: $*" >&2; exit 1; }
+echo "== daemon"
+(cd daemon && go vet ./... && go test ./... >/tmp/simple-go-test.log 2>&1) || { tail -40 /tmp/simple-go-test.log; fail "go"; }
+(cd daemon && GOOS=windows GOARCH=amd64 go vet ./... && GOOS=windows GOARCH=amd64 go build -o /dev/null ./cmd/simpled) || fail "go windows"
+(cd daemon && GOOS=darwin GOARCH=arm64 go vet ./... && GOOS=darwin GOARCH=arm64 go build -o /dev/null ./cmd/simpled) || fail "go darwin"
+(cd daemon && go build -ldflags="-s -w" -o bin/simpled ./cmd/simpled)
+size=$(stat -c %s daemon/bin/simpled); [ "$size" -lt 10485760 ] || fail "simpled is $size bytes, budget 10 MiB"
+echo "simpled $size bytes"
+echo "== app"
+(cd app && ./gradlew --console=plain -q lintRelease testDebugUnitTest assembleRelease) || fail "gradle"
+apk=$(ls app/build/outputs/apk/release/*.apk | head -1)
+size=$(stat -c %s "$apk"); [ "$size" -lt 8388608 ] || fail "apk is $size bytes, budget 8 MiB"
+echo "apk $size bytes"
+if grep -rnE '0\.0\.0\.0|"::"' daemon --include=*.go | grep -v _test.go; then fail "wildcard bind"; fi
+if grep -rnP '[\x{2013}\x{2014}]' app/src/main/res app/src/main/kotlin 2>/dev/null | head -5 | grep .; then fail "dash characters in app text"; fi
+echo "check: pass"

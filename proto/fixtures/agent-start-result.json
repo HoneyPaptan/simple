@@ -1,0 +1,14 @@
+{
+  "agent": {
+    "id": "t9",
+    "kind": "shell",
+    "title": "/bin/bash -l",
+    "cwd": "/home/dev/demo",
+    "workspace": "/home/dev/demo",
+    "status": "idle",
+    "started_ms": 1700000000000,
+    "updated_ms": 1700000000000,
+    "pinned": false,
+    "unread": false
+  }
+}

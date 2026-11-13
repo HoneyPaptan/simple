@@ -1,0 +1,64 @@
+{
+  "host": {
+    "id": "h_deadbeef",
+    "name": "simple",
+    "version": "0.1.0",
+    "epoch": "e_abc123",
+    "hc": "0.1.17",
+    "linger": true
+  },
+  "seq": 1042,
+  "replay": false,
+  "snapshot": {
+    "agents": [
+      {
+        "id": "t3",
+        "kind": "other",
+        "title": "Terminal t3",
+        "cwd": "/home/dev",
+        "workspace": "/home/dev",
+        "status": "idle",
+        "started_ms": 1700000000000,
+        "updated_ms": 1700000001000,
+        "pinned": false,
+        "unread": false
+      },
+      {
+        "id": "t4",
+        "kind": "shell",
+        "title": "bash",
+        "cwd": "/home/dev/project",
+        "workspace": "/home/dev/project",
+        "status": "working",
+        "started_ms": 1700000002000,
+        "updated_ms": 1700000003000,
+        "pinned": false,
+        "unread": false
+      },
+      {
+        "id": "t6",
+        "kind": "other",
+        "title": "Terminal t6",
+        "cwd": "/tmp",
+        "workspace": "/tmp",
+        "status": "idle",
+        "started_ms": 1700000004000,
+        "updated_ms": 1700000005000,
+        "pinned": false,
+        "unread": false
+      }
+    ],
+    "inbox": [],
+    "workspaces": [
+      {
+        "path": "/home/dev/project",
+        "name": "project",
+        "branch": "main",
+        "dirty": false,
+        "agents": 2,
+        "pinned": false,
+        "updated_ms": 1700000005000
+      }
+    ]
+  }
+}

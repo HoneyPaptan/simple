@@ -25,16 +25,13 @@ func SendPromptWhenQuiet(ctx context.Context, client *hc.Client, termID, kind, t
 		tick := time.NewTicker(300 * time.Millisecond)
 		defer tick.Stop()
 		deadline := time.After(10 * time.Minute)
-		finish := func(sent bool) {
-			done(sent)
-		}
 		for {
 			select {
 			case <-ctx.Done():
-				finish(false)
+				done(false)
 				return
 			case <-deadline:
-				finish(false)
+				done(false)
 				return
 			case <-tick.C:
 				var rr struct {
@@ -44,7 +41,7 @@ func SendPromptWhenQuiet(ctx context.Context, client *hc.Client, termID, kind, t
 					continue
 				}
 				if _, ok := ClassifyIdle(rr.Text, prompt); ok {
-					finish(false)
+					done(false)
 					return
 				}
 				if paneReady(kind, rr.Text) && rr.Text == last {
@@ -60,7 +57,7 @@ func SendPromptWhenQuiet(ctx context.Context, client *hc.Client, termID, kind, t
 						"terminal": termID,
 						"text":     prompt,
 					}, &out)
-					finish(err == nil)
+					done(err == nil)
 					if err != nil {
 						return
 					}

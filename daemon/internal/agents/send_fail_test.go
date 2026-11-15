@@ -20,6 +20,30 @@ func TestClassifyIdleSkipsPromptEcho(t *testing.T) {
 	}
 }
 
+func TestClassifyIdleSkipsPromptInsideTheBox(t *testing.T) {
+	prompts := []string{
+		"fix the unauthorized error in login",
+		"why does it say no such file",
+	}
+	for _, prompt := range prompts {
+		if _, ok := ClassifyIdle(prompt, prompt); ok {
+			t.Fatalf("plain %q", prompt)
+		}
+		if _, ok := ClassifyIdle("> "+prompt, prompt); ok {
+			t.Fatalf("prefixed %q", prompt)
+		}
+		mid := len(prompt) / 2
+		wrapped := "│ " + prompt[:mid] + " │\n│ " + prompt[mid:] + " │"
+		if _, ok := ClassifyIdle(wrapped, prompt); ok {
+			t.Fatalf("wrapped %q", prompt)
+		}
+	}
+	line, ok := ClassifyIdle("Not logged in. Run /login", prompts[0])
+	if !ok || line != "Not logged in. Run /login" {
+		t.Fatalf("auth %q %v", line, ok)
+	}
+}
+
 func TestSendWatchIgnoresCommandNotFoundOnceTurnStarts(t *testing.T) {
 	failed := false
 	RunSendWatch(context.Background(), SendWatch{
@@ -121,7 +145,7 @@ func TestLatchSurvivesIdlePollAndClearsOnWorking(t *testing.T) {
 		Status:  &hc.StatusRecord{State: "idle"},
 	}
 	s.LoadSnapshot([]hc.Terminal{idle})
-	s.LatchSendFailure("t1", "Not logged in", "hi")
+	s.LatchSendFailure("t1", "Not logged in")
 	s.LoadSnapshot([]hc.Terminal{idle})
 	a, ok := s.Get("t1")
 	if !ok || a.Status != "failed" {
@@ -130,6 +154,9 @@ func TestLatchSurvivesIdlePollAndClearsOnWorking(t *testing.T) {
 	ev, ok := s.SendEvent("t1")
 	if !ok || ev.Text == nil || *ev.Text != "Not logged in" {
 		t.Fatalf("event %+v", ev)
+	}
+	if ids := s.PollableAgentIDs(); !containsID(ids, "t1") {
+		t.Fatalf("send latch not polled: %v", ids)
 	}
 	working := idle
 	working.Status = &hc.StatusRecord{State: "working"}
@@ -141,8 +168,30 @@ func TestLatchSurvivesIdlePollAndClearsOnWorking(t *testing.T) {
 	if _, ok := s.SendEvent("t1"); ok {
 		t.Fatal("event still latched")
 	}
+	code := int32(1)
+	s.LoadSnapshot([]hc.Terminal{{
+		Address:  "dead",
+		State:    "finished",
+		ExitCode: &code,
+		Cwd:      "/tmp/demo",
+		Argv:     []string{"claude"},
+	}})
+	for _, id := range s.PollableAgentIDs() {
+		if id == "dead" {
+			t.Fatal("exited agent is polled")
+		}
+	}
 	joined := strings.Join(events, ",")
 	if !strings.Contains(joined, "agent.update") || !strings.Contains(joined, "transcript.append") {
 		t.Fatalf("events %s", joined)
 	}
+}
+
+func containsID(ids []string, want string) bool {
+	for _, id := range ids {
+		if id == want {
+			return true
+		}
+	}
+	return false
 }

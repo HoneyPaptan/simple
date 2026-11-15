@@ -1,0 +1,15 @@
+{
+  "ev": "transcript.append",
+  "seq": 1101,
+  "d": {
+    "id": "t4",
+    "messages": [
+      {
+        "id": "sf:t4",
+        "role": "event",
+        "ts": 1700000002000,
+        "text": "Not logged in"
+      }
+    ]
+  }
+}

@@ -31,7 +31,7 @@ func (srv *Server) failIfStillWaiting(id, prompt string, since int64, fallback s
 	if strings.TrimSpace(text) == "" {
 		text = agents.CouldNotSend()
 	}
-	srv.Agents.LatchSendFailure(id, text, prompt)
+	srv.Agents.LatchSendFailure(id, text)
 	srv.watchSend(id, prompt, false)
 }
 
@@ -56,7 +56,7 @@ func (srv *Server) watchSend(id, prompt string, classify bool) {
 			return srv.promptLanded(id, prompt, since)
 		},
 		Fail: func(text string) {
-			srv.Agents.LatchSendFailure(id, text, prompt)
+			srv.Agents.LatchSendFailure(id, text)
 		},
 		Clear: func() {
 			srv.Agents.ClearSendFailure(id)

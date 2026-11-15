@@ -64,7 +64,8 @@ func (s *Store) PollableAgentIDs() []string {
 	out := make([]string, 0, len(s.byID))
 	for id, a := range s.byID {
 		if a.Status == "failed" {
-			if _, latched := s.sendFail[id]; !latched {
+			lat, ok := s.sendFail[id]
+			if !ok || !lat.fromSend {
 				continue
 			}
 		}

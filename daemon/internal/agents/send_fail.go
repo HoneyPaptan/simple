@@ -66,7 +66,7 @@ func matchPhrases(screen, prompt string, phrases []string) (string, bool) {
 	lines := nonEmptyLines(screen, 12)
 	for i := len(lines) - 1; i >= 0; i-- {
 		line := lines[i]
-		if want != "" && strings.TrimSpace(line) == want {
+		if lineOverlapsPrompt(line, want) {
 			continue
 		}
 		lower := strings.ToLower(line)
@@ -77,6 +77,33 @@ func matchPhrases(screen, prompt string, phrases []string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+func lineOverlapsPrompt(line, prompt string) bool {
+	want := strings.ToLower(strings.TrimSpace(prompt))
+	if want == "" {
+		return false
+	}
+	got := strings.ToLower(stripPromptChrome(line))
+	if got == "" {
+		return false
+	}
+	return strings.Contains(want, got) || strings.Contains(got, want)
+}
+
+func stripPromptChrome(line string) string {
+	var b strings.Builder
+	for _, r := range line {
+		if r >= 0x2500 && r <= 0x257F {
+			continue
+		}
+		b.WriteRune(r)
+	}
+	s := strings.TrimSpace(b.String())
+	for strings.HasPrefix(s, ">") {
+		s = strings.TrimSpace(strings.TrimPrefix(s, ">"))
+	}
+	return s
 }
 
 func nonEmptyLines(text string, max int) []string {
@@ -226,12 +253,12 @@ func failMessage(id, text string) wire.Message {
 }
 
 type sendFail struct {
-	text   string
-	prompt string
-	event  wire.Message
+	text     string
+	event    wire.Message
+	fromSend bool
 }
 
-func (s *Store) LatchSendFailure(id, text, prompt string) {
+func (s *Store) LatchSendFailure(id, text string) {
 	if s == nil || id == "" || strings.TrimSpace(text) == "" {
 		return
 	}
@@ -247,7 +274,7 @@ func (s *Store) LatchSendFailure(id, text, prompt string) {
 		s.sendFail = make(map[string]sendFail)
 	}
 	msg := failMessage(id, text)
-	s.sendFail[id] = sendFail{text: text, prompt: prompt, event: msg}
+	s.sendFail[id] = sendFail{text: text, event: msg, fromSend: true}
 	if a, ok := s.byID[id]; ok {
 		a.Status = "failed"
 		a.Waiting = nil

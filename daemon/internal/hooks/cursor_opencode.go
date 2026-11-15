@@ -107,7 +107,7 @@ func (d *Daemon) handleOpenCode(ctx context.Context, terminalID, event string, b
 			d.Agents.SetAgentFields(terminalID, "working", nil)
 		} else if event == "session.error" {
 			if a, ok := d.Agents.Get(terminalID); !ok || a.Status != "working" {
-				d.Agents.LatchSendFailure(terminalID, openCodeFailText(root), "")
+				d.Agents.LatchSendFailure(terminalID, openCodeFailText(root))
 			}
 		}
 		return json.RawMessage(`{}`), true

@@ -48,7 +48,9 @@ func LingerEnabled() bool {
 	return true
 }
 
-
+func ServiceComingUp() bool {
+	return windowsTaskServiceComingUp(taskName, commandOutput)
+}
 
 func taskXML(exe string) string {
 	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-16"?>

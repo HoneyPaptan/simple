@@ -72,3 +72,7 @@ func Uninstall() error {
 func LingerEnabled() bool {
 	return true
 }
+
+func ServiceComingUp() bool {
+	return false
+}

@@ -21,6 +21,7 @@ type Turns struct {
 	Inbox     InboxSink
 	Agents    func() []wire.Agent
 	SetStatus func(agentID, status string)
+	Observe   func(agentID string, items []Item) bool
 	Every     time.Duration
 
 	mu   sync.Mutex
@@ -93,10 +94,13 @@ func (t *Turns) Poll(ctx context.Context) {
 }
 
 func (t *Turns) finish(ctx context.Context, a wire.Agent) {
-	t.SetStatus(a.ID, "done")
 	mctx, cancel := context.WithTimeout(ctx, 4*time.Second)
 	items, _ := t.API.Messages(mctx, *a.Session)
 	cancel()
+	if t.Observe != nil && t.Observe(a.ID, items) {
+		return
+	}
+	t.SetStatus(a.ID, "done")
 	body := LastReply(items)
 	id, err := inbox.NewItemID()
 	if err != nil {

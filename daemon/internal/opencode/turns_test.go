@@ -43,6 +43,34 @@ func TestTurnsFinishAddsDoneItem(t *testing.T) {
 	}
 }
 
+func TestTurnsFinishSkipsDoneWhenSendFailed(t *testing.T) {
+	api := &fakeTurns{active: map[string]json.RawMessage{"ses_a": json.RawMessage(`{}`)}}
+	box := &fakeInbox{}
+	var statuses []string
+	ag := []wire.Agent{agentWith("t1", "ses_a", "ask")}
+	api.items = []Item{
+		{ID: "u", Type: "user", Text: "probe"},
+		{ID: "f", Type: "idle", Outcome: "failed", Error: []byte(`{"message":"invalid api key"}`)},
+	}
+	tr := &Turns{
+		API: api, Inbox: box, Agents: func() []wire.Agent { return ag },
+		SetStatus: func(id, s string) { statuses = append(statuses, id+"="+s) },
+		Observe:   func(string, []Item) bool { return true },
+	}
+	ctx := context.Background()
+	tr.Poll(ctx)
+	delete(api.active, "ses_a")
+	tr.Poll(ctx)
+	if len(box.added) != 0 {
+		t.Fatalf("inbox %#v", box.added)
+	}
+	for _, st := range statuses {
+		if st == "t1=done" {
+			t.Fatalf("done overwrote failure: %v", statuses)
+		}
+	}
+}
+
 func TestDoneTitleMarksStoppedTurns(t *testing.T) {
 	if doneTitle(stoppedPrefix+"Free usage limit reached.") != "Stopped" || doneTitle("All set.") != "Finished" {
 		t.Fatal("wrong done title")

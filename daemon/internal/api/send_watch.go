@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"sh.simple/simpled/internal/agents"
+	"sh.simple/simpled/internal/opencode"
 	"sh.simple/simpled/internal/wire"
 )
 
@@ -28,6 +29,7 @@ func (srv *Server) noteDelivered(id, prompt string) {
 	}
 	log.Printf("agent.send %s", id)
 	srv.Agents.ClearSendFailure(id)
+	srv.noteOpenCodeSend(id)
 	srv.watchSend(id, prompt, true)
 }
 
@@ -39,6 +41,33 @@ func (srv *Server) latchFailedSend(id, text string) {
 	if srv.Agents != nil {
 		srv.Agents.LatchSendFailure(id, text)
 	}
+}
+
+func (srv *Server) ReleaseSend(id string) {
+	if srv != nil {
+		srv.sends.releaseAgent(id)
+	}
+}
+
+func (srv *Server) noteOpenCodeSend(id string) {
+	if srv == nil || srv.Agents == nil || id == "" {
+		return
+	}
+	agent, ok := srv.Agents.Get(id)
+	if !ok || agent.Kind != "opencode" {
+		return
+	}
+	at := time.Now().UnixMilli()
+	var failedIDs []string
+	if agent.Session != nil && *agent.Session != "" && srv.OpenCode != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		items, err := srv.OpenCode.Messages(ctx, *agent.Session)
+		cancel()
+		if err == nil {
+			failedIDs = opencode.FailedIDs(items)
+		}
+	}
+	srv.Agents.NoteOpenCodeSend(id, failedIDs, at)
 }
 
 func (srv *Server) failIfStillWaiting(id, prompt string, since int64, fallback string) {

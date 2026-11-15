@@ -67,6 +67,7 @@ class ChatWorkingTest {
         val outbound = OutboundChatBubble("local", "hello", stagedAtMs = 100L)
         assertEquals(true, sendFailureRetryVisible(true, outbound, emptyList()))
         assertEquals(false, sendFailureRetryVisible(true, outbound, listOf("hello")))
+        assertEquals(true, sendFailureRetryVisible(true, null, listOf("hello"), remembered = true))
         assertEquals(false, sendFailureRetryVisible(false, outbound, emptyList()))
         assertEquals(
             "Not logged in",

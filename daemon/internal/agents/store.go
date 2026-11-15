@@ -26,10 +26,18 @@ type Store struct {
 	herdrSaved     map[string]herdrSaved
 	herdrSavedPath string
 	sendFail       map[string]sendFail
+	ocSend         map[string]openCodePending
 
 	pub func(ev string, data any)
 
 	onPollSync func()
+	onSendFail func(string)
+}
+
+func (s *Store) SetSendFailRelease(fn func(string)) {
+	s.mu.Lock()
+	s.onSendFail = fn
+	s.mu.Unlock()
 }
 
 type userMeta struct {
@@ -163,6 +171,7 @@ func (s *Store) LoadSnapshot(terminals []hc.Terminal) {
 			delete(s.byID, id)
 			delete(s.terms, id)
 			delete(s.sendFail, id)
+			delete(s.ocSend, id)
 		}
 	}
 	for id, a := range nextAgents {
@@ -226,6 +235,7 @@ func (s *Store) HandleEvent(ev hc.Event) {
 			delete(s.terms, ev.Terminal)
 			delete(s.meta, ev.Terminal)
 			delete(s.sendFail, ev.Terminal)
+			delete(s.ocSend, ev.Terminal)
 			s.pub("agent.removed", wire.AgentRemoved{ID: ev.Terminal})
 			s.reconcileWorkspacesLocked()
 		}
@@ -618,6 +628,9 @@ func (s *Store) SetAgentFields(id string, status string, waiting *string) {
 	}
 	if status == "working" {
 		s.dropLatchLocked(id, false)
+	} else if status != "failed" && s.latchedTextLocked(id) != "" {
+		status = "failed"
+		waiting = nil
 	}
 	if a.Status == status && sameWaiting(a.Waiting, waiting) {
 		return

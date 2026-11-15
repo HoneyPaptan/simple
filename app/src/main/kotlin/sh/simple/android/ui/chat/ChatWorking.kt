@@ -32,8 +32,11 @@ fun sendFailureRetryVisible(
     agentFailed: Boolean,
     outbound: OutboundChatBubble?,
     transcriptUserLines: List<String>,
+    remembered: Boolean = false,
 ): Boolean {
-    if (!agentFailed || outbound == null) return false
+    if (!agentFailed) return false
+    if (remembered) return true
+    if (outbound == null) return false
     val want = normalizeUserMatchText(outbound.displayText)
     if (want.isEmpty()) return false
     return transcriptUserLines.none { normalizeUserMatchText(it) == want }

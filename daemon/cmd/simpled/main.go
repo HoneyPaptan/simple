@@ -113,6 +113,7 @@ func runServe() {
 		h.Publish(ev, data)
 	})
 	transcriptMgr.SetAgentLookup(agentStore.Get)
+	transcriptMgr.SetOpenCodeObserver(agentStore.ObserveOpenCodeTurn, agentStore.SendFailureText)
 	transcriptMgr.PersistBindings(filepath.Join(store.StateDir, "transcript-bindings.json"))
 	agentStore.PersistHerdr(filepath.Join(store.StateDir, "herdr-agents.json"))
 	transcriptMgr.SetContextSync(agentStore.SetAgentContext, agentStore.PollableAgentIDs)
@@ -156,6 +157,7 @@ func runServe() {
 		Screens: screens, SimpledPath: simpledPath, HostID: hostID, Linger: linger,
 		OpenCode: openCode, Approvals: approvals,
 	})
+	agentStore.SetSendFailRelease(srv.ReleaseSend)
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 	ctl := control.New(store, pm, hookDaemon)
@@ -168,6 +170,7 @@ func runServe() {
 	turns := &opencode.Turns{
 		API: openCode, Inbox: inboxStore, Agents: agentStore.Snapshot,
 		SetStatus: func(id, status string) { agentStore.SetAgentFields(id, status, nil) },
+		Observe:   agentStore.ObserveOpenCodeTurn,
 	}
 	go turns.Run(ctx)
 	hcLoaded := newOnce()

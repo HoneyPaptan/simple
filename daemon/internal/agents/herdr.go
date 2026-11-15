@@ -183,6 +183,8 @@ func (s *Store) LoadHerdrAgents(list []herdr.AgentInfo) {
 			delete(s.meta, id)
 			delete(s.herdr, id)
 			delete(s.byID, id)
+			delete(s.sendFail, id)
+			delete(s.ocSend, id)
 		}
 	}
 	for id, a := range nextAgents {

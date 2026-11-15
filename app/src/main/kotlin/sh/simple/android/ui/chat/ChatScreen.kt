@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
@@ -85,6 +86,7 @@ import sh.simple.android.ui.inbox.InboxAnswerRequest
 import sh.simple.android.ui.inbox.InboxItemCard
 import sh.simple.android.ui.inbox.rememberInboxAnswerUiState
 import sh.simple.android.ui.kit.AppText
+import sh.simple.android.ui.kit.SecondaryButton
 import sh.simple.android.ui.kit.AnchoredMenu
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
@@ -330,6 +332,7 @@ fun ChatScreen(
         modelLabel = label
     }
     val working = agent?.status == "working"
+    val failed = agent?.status == "failed"
     val followUpPlaceholder = if (attachmentState.attachments.isEmpty()) "Follow up..." else "Plan, ask, build..."
     val outboundKey = "$hostId:$agentId"
     val outbound = app.chatOutbound.pending[outboundKey]
@@ -351,7 +354,8 @@ fun ChatScreen(
         }
     }
     ChatOpenTraceEffect(decodedMessages.isNotEmpty() || outbound != null)
-    val blocks = remember(decodedMessages, working) { chatBlocks(decodedMessages, working) }
+    val turnMessages = remember(decodedMessages) { decodedMessages.filter { !it.id.startsWith("sf:") } }
+    val blocks = remember(turnMessages, working) { chatBlocks(turnMessages, working) }
     LaunchedEffect(decodedMessages) {
         val userTexts = decodedMessages.filter { it.role == "user" }.mapNotNull { it.text }
         val cleared = app.chatOutbound.reconcile(hostId, agentId, userTexts)
@@ -404,7 +408,7 @@ fun ChatScreen(
             enriched + waitingRows + bubble(outbound, label)
         }
     }
-    val awaitingReply = chatAwaitingReply(working, outbound, agent?.updated ?: 0L)
+    val awaitingReply = chatAwaitingReply(working, outbound, agent?.updated ?: 0L, failed)
     val turns = remember(displayBlocks, awaitingReply) { splitChatTurns(displayBlocks, awaitingReply) }
     var openTurns by remember { mutableStateOf(emptySet<String>()) }
     val turnSummaries = remember(turns) {
@@ -780,14 +784,40 @@ fun ChatScreen(
                         )
                     }
                 }
-                if (agent?.status == "failed") {
-                    item {
-                        AppText(
-                            "This agent stopped with an error. Open its terminal to see why.",
-                            Modifier.padding(vertical = 12.dp),
-                            style = Type.meta,
-                            color = Tokens.current.muted,
-                        )
+                if (failed) {
+                    item(key = "send-failed") {
+                        val userLines = decodedMessages.filter { it.role == "user" }.mapNotNull { it.text }
+                        val showRetry = sendFailureRetryVisible(true, outbound, userLines)
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            AppText(
+                                sendFailureLine(decodedMessages),
+                                Modifier.weight(1f),
+                                style = Type.meta,
+                                color = Tokens.current.muted,
+                            )
+                            if (showRetry) {
+                                SecondaryButton("Retry", Modifier.padding(start = 12.dp)) {
+                                    val row = outbound ?: return@SecondaryButton
+                                    val ws = agent?.workspace?.takeIf { it.isNotEmpty() } ?: agent?.cwd.orEmpty()
+                                    scope.launchChatFollowUp(
+                                        hosts,
+                                        app.vault,
+                                        db,
+                                        app.chatOutbound,
+                                        hostId,
+                                        agentId,
+                                        row.displayText,
+                                        row.imagePaths,
+                                        ws,
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }

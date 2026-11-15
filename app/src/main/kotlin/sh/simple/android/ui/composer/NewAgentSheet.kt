@@ -192,6 +192,7 @@ fun NewAgentConfigureSheet(
                 if (outbound != null && (prompt.isNotBlank() || attachments.isNotEmpty())) {
                     val paths = attachments.map { it.localPath }
                     val localId = outbound.stage(picked.hostId, agent.id, prompt, paths)
+                    outbound.rememberDelivery(picked.hostId, agent.id, prompt, paths, picked.cwd)
                     persistMessageImages(
                         appContext,
                         db.messageImages(),

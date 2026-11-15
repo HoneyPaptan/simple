@@ -59,6 +59,19 @@ class ChatWorkingTest {
         assertEquals(true, chatAwaitingReply(false, sent, 50L))
         assertEquals(true, chatAwaitingReply(false, sent.copy(daemonAcked = false), 200L))
         assertEquals(true, chatAwaitingReply(true, null, 0L))
+        assertEquals(false, chatAwaitingReply(false, sent.copy(daemonAcked = false), 50L, agentFailed = true))
+    }
+
+    @Test
+    fun retryHidesOnceTheUserTextLands() {
+        val outbound = OutboundChatBubble("local", "hello", stagedAtMs = 100L)
+        assertEquals(true, sendFailureRetryVisible(true, outbound, emptyList()))
+        assertEquals(false, sendFailureRetryVisible(true, outbound, listOf("hello")))
+        assertEquals(false, sendFailureRetryVisible(false, outbound, emptyList()))
+        assertEquals(
+            "Not logged in",
+            sendFailureLine(listOf(Message("sf:t1", "event", 1L, text = "Not logged in"))),
+        )
     }
 
     @Test

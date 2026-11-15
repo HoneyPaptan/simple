@@ -146,6 +146,7 @@ func (s *Store) LoadHerdrAgents(list []herdr.AgentInfo) {
 		a := buildHerdrAgent(info)
 		s.applyMeta(&a, s.meta[id])
 		s.applyPromptTitle(&a, s.meta[id])
+		s.holdSendFail(&a)
 		if old, ok := s.byID[id]; ok && old.StartedMs > 0 {
 			a.StartedMs = old.StartedMs
 		} else if saved, ok := s.herdrSaved[id]; ok {

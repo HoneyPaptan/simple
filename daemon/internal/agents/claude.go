@@ -80,12 +80,13 @@ func claudeSettingsJSON(goos, simpledPath string) string {
 }
 
 type StartClaudeParams struct {
-	Cwd      string
-	Prompt   *string
-	Model    *string
-	Effort   *string
-	Mode     string
-	Worktree *wire.WorktreeParams
+	Cwd         string
+	Prompt      *string
+	Model       *string
+	Effort      *string
+	Mode        string
+	Worktree    *wire.WorktreeParams
+	AfterPrompt func(id string, sent bool)
 }
 
 func StartClaude(ctx context.Context, client *hc.Client, simpledPath string, p StartClaudeParams) (wire.Agent, hc.Terminal, error) {

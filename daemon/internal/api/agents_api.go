@@ -3,8 +3,10 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"sh.simple/simpled/internal/files"
 	"strings"
+	"time"
+
+	"sh.simple/simpled/internal/files"
 
 	"sh.simple/simpled/internal/agents"
 	"sh.simple/simpled/internal/detect"
@@ -64,6 +66,18 @@ func (sess *session) agentStart(ctx context.Context, id *int64, p json.RawMessag
 		startParams := agents.StartClaudeParams{
 			Cwd: par.Cwd, Prompt: par.Prompt, Model: par.Model, Effort: par.Effort, Mode: par.Mode, Worktree: par.Worktree,
 		}
+		prompt := ""
+		if par.Prompt != nil {
+			prompt = strings.TrimSpace(*par.Prompt)
+		}
+		since := time.Now().UnixMilli()
+		startParams.AfterPrompt = func(agentID string, sent bool) {
+			if sent {
+				sess.srv.noteDelivered(agentID, prompt)
+				return
+			}
+			sess.srv.failIfStillWaiting(agentID, prompt, since, agents.DidNotStart(par.Kind))
+		}
 		a, err := agents.StartInHerdr(ctx, sess.srv.Herdr, par.Kind, startParams)
 		if err != nil {
 			sess.writeErr(ctx, id, "internal", err.Error())
@@ -109,7 +123,15 @@ func (sess *session) agentStart(ctx context.Context, id *int64, p json.RawMessag
 	}
 	sess.srv.Agents.Upsert(a)
 	if par.Prompt != nil && strings.TrimSpace(*par.Prompt) != "" {
-		agents.SendPromptWhenQuiet(ctx, sess.srv.HC, a.ID, par.Kind, *par.Prompt)
+		prompt := strings.TrimSpace(*par.Prompt)
+		since := time.Now().UnixMilli()
+		agents.SendPromptWhenQuiet(ctx, sess.srv.HC, a.ID, par.Kind, prompt, func(sent bool) {
+			if sent {
+				sess.srv.noteDelivered(a.ID, prompt)
+				return
+			}
+			sess.srv.failIfStillWaiting(a.ID, prompt, since, agents.DidNotStart(par.Kind))
+		})
 	}
 	sess.writeResult(ctx, id, map[string]any{"agent": a})
 }
@@ -181,6 +203,7 @@ func (sess *session) agentTranscript(ctx context.Context, id *int64, p json.RawM
 		sess.writeErr(ctx, id, "internal", err.Error())
 		return
 	}
+	msgs = sess.appendSendEvent(par.ID, msgs, par.Before)
 	sess.writeResult(ctx, id, wire.AgentTranscriptResult{Messages: msgs, Before: before, Since: since})
 }
 

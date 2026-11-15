@@ -2,6 +2,7 @@ package wire_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -22,7 +23,7 @@ func fixtureDir(t *testing.T) string {
 func TestFixturesRoundTrip(t *testing.T) {
 	dir := fixtureDir(t)
 	cases := []struct {
-		file string
+		file   string
 		decode func([]byte) (any, error)
 	}{
 		{"ws-hello-request.json", func(b []byte) (any, error) {
@@ -94,6 +95,12 @@ func TestFixturesRoundTrip(t *testing.T) {
 			var e wire.WSEvent
 			err := json.Unmarshal(b, &e)
 			return e, err
+		}},
+		{"event-send-fail.json", func(b []byte) (any, error) {
+			return decodeSendFail(b, "Not logged in")
+		}},
+		{"event-send-fail-clear.json", func(b []byte) (any, error) {
+			return decodeSendFail(b, "")
 		}},
 		{"event-screen.json", func(b []byte) (any, error) {
 			var e wire.WSEvent
@@ -235,4 +242,26 @@ func TestFixturesRoundTrip(t *testing.T) {
 			}
 		})
 	}
+}
+
+func decodeSendFail(b []byte, text string) (any, error) {
+	var e wire.WSEvent
+	if err := json.Unmarshal(b, &e); err != nil {
+		return nil, err
+	}
+	var body wire.TranscriptAppend
+	if err := json.Unmarshal(e.D, &body); err != nil {
+		return nil, err
+	}
+	if len(body.Messages) != 1 || body.Messages[0].ID != "sf:"+body.ID {
+		return nil, fmt.Errorf("event id")
+	}
+	got := ""
+	if body.Messages[0].Text != nil {
+		got = *body.Messages[0].Text
+	}
+	if got != text {
+		return nil, fmt.Errorf("text %q", got)
+	}
+	return e, nil
 }

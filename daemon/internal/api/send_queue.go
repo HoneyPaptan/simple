@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"time"
 
+	"sh.simple/simpled/internal/agents"
 	"sh.simple/simpled/internal/hc"
 	"sh.simple/simpled/internal/herdr"
 )
@@ -35,13 +37,22 @@ func (srv *Server) deliverPrompt(ctx context.Context, id, text string) error {
 		if !ok {
 			return errors.New("agent not found")
 		}
-		return srv.Herdr.AgentPrompt(ctx, target, text)
+		if err := srv.Herdr.AgentPrompt(ctx, target, text); err != nil {
+			return err
+		}
+		srv.noteDelivered(id, text)
+		return nil
 	}
 	if srv.HC == nil || srv.HC.Status() != hc.StatusUp {
 		return errors.New("hc unavailable")
 	}
 	var out json.RawMessage
-	return srv.HC.Call(ctx, "terminal.send", map[string]any{"terminal": id, "text": text}, &out)
+	err := srv.HC.Call(ctx, "terminal.send", map[string]any{"terminal": id, "text": text}, &out)
+	if err != nil {
+		return err
+	}
+	srv.noteDelivered(id, text)
+	return nil
 }
 
 func (srv *Server) deviceAuthorized(device string) bool {
@@ -86,6 +97,7 @@ func (sess *session) queueSend(ctx context.Context, id *int64, p json.RawMessage
 		return true
 	}
 	if err != nil {
+		sess.srv.failIfStillWaiting(in.ID, in.Text, time.Now().Add(-2*time.Second).UnixMilli(), agents.CouldNotSend())
 		sess.writeErr(ctx, id, "hc_unavailable", err.Error())
 		return true
 	}

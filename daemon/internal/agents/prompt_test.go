@@ -84,7 +84,7 @@ func TestSendPromptWhenQuiet(t *testing.T) {
 	if err := client.Call(ctx, "hello", map[string]any{"generation": 1}, nil); err != nil {
 		t.Fatal(err)
 	}
-	SendPromptWhenQuiet(ctx, client, "t1", "shell", "hello there")
+	SendPromptWhenQuiet(ctx, client, "t1", "shell", "hello there", nil)
 	deadline := time.After(5 * time.Second)
 	for {
 		mu.Lock()
@@ -102,7 +102,7 @@ func TestSendPromptWhenQuiet(t *testing.T) {
 	mu.Lock()
 	sent = ""
 	mu.Unlock()
-	SendPromptWhenQuiet(ctx, client, "t2", "fx", "fx prompt")
+	SendPromptWhenQuiet(ctx, client, "t2", "fx", "fx prompt", nil)
 	deadline = time.After(5 * time.Second)
 	for {
 		mu.Lock()

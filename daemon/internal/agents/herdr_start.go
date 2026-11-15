@@ -126,7 +126,14 @@ func StartInHerdr(ctx context.Context, client *herdr.Client, kind string, p Star
 		return wire.Agent{}, err
 	}
 	if p.Prompt != nil && strings.TrimSpace(*p.Prompt) != "" {
-		go promptWhenReady(client, name, *p.Prompt)
+		id := HerdrAgentID(paneID)
+		after := p.AfterPrompt
+		go func() {
+			sent := promptWhenReady(client, name, *p.Prompt)
+			if after != nil {
+				after(id, sent)
+			}
+		}()
 	}
 	list, err := client.AgentList(ctx)
 	if err != nil {
@@ -195,20 +202,21 @@ const (
 	herdrTurnStart = 5 * time.Second
 )
 
-func promptWhenReady(client *herdr.Client, name, text string) {
+func promptWhenReady(client *herdr.Client, name, text string) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), herdrReadyWait)
 	defer cancel()
 	for {
 		if herdrAgentReady(ctx, client, name) {
 			time.Sleep(herdrSettle)
-			if client.AgentPrompt(ctx, name, text) == nil {
-				nudgeIfIdle(ctx, client, name)
+			if client.AgentPrompt(ctx, name, text) != nil {
+				return false
 			}
-			return
+			nudgeIfIdle(ctx, client, name)
+			return true
 		}
 		select {
 		case <-ctx.Done():
-			return
+			return false
 		case <-time.After(300 * time.Millisecond):
 		}
 	}

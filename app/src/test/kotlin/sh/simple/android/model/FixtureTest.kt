@@ -3,6 +3,10 @@ package sh.simple.android.model
 import java.io.File
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Test
 
@@ -44,6 +48,21 @@ class FixtureTest {
         WireJson.decodeFromString<PanesListResult>(read("panes-list-result.json"))
         WireJson.decodeFromString<PanesPeekResult>(read("panes-peek-result.json"))
         WireJson.decodeFromString<PanesSpawnResult>(read("panes-spawn-result.json"))
+    }
+
+    @Test
+    fun decodeSendFailFixtures() {
+        val fail = WireJson.decodeFromString<WsEvent>(read("event-send-fail.json"))
+        val clear = WireJson.decodeFromString<WsEvent>(read("event-send-fail-clear.json"))
+        assertEquals("transcript.append", fail.ev)
+        assertEquals("transcript.append", clear.ev)
+        val failMsg = fail.d.jsonObject["messages"]!!.jsonArray[0].jsonObject
+        val clearMsg = clear.d.jsonObject["messages"]!!.jsonArray[0].jsonObject
+        assertEquals("sf:t4", failMsg["id"]!!.jsonPrimitive.content)
+        assertEquals("event", failMsg["role"]!!.jsonPrimitive.content)
+        assertEquals("Not logged in", failMsg["text"]!!.jsonPrimitive.content)
+        assertEquals("sf:t4", clearMsg["id"]!!.jsonPrimitive.content)
+        assertEquals("", clearMsg["text"]!!.jsonPrimitive.content)
     }
 
     @Test

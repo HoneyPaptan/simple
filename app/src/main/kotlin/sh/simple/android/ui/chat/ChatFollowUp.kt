@@ -4,8 +4,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import java.io.IOException
 import sh.simple.android.link.HostLinkState
 import sh.simple.android.link.Hosts
+import sh.simple.android.link.LinkDroppedException
 import sh.simple.android.link.RemoteGateway
 import sh.simple.android.link.rpcRun
 import sh.simple.android.store.SimpleDatabase
@@ -27,18 +29,41 @@ suspend fun deliverChatFollowUp(
     hostId: String,
     agentId: String,
     delivery: QueuedFollowUpDelivery,
-): Boolean? {
-    if (!store.beginDelivery(hostId, agentId, delivery.cid)) return null
+): FollowUpDelivery {
+    if (!store.beginDelivery(hostId, agentId, delivery.cid)) return FollowUpDelivery.Busy
     try {
         val result = rpcRun {
             val paths = uploadAttachmentLocalPaths(hosts, vault, db, hostId, delivery.workspace, delivery.attachmentLocalPaths)
             val payload = RemoteGateway.promptWithAttachmentPaths(delivery.text, paths)
             RemoteGateway.send(hosts, hostId, agentId, payload, delivery.cid)
         }
-        return result.isSuccess
+        return when {
+            result.isSuccess -> FollowUpDelivery.Sent
+            result.exceptionOrNull()?.let(::followUpOffline) == true -> FollowUpDelivery.Offline
+            else -> FollowUpDelivery.Failed
+        }
     } finally {
         store.endDelivery(hostId, agentId, delivery.cid)
     }
+}
+
+enum class FollowUpDelivery { Sent, Offline, Failed, Busy }
+
+fun followUpOffline(error: Throwable): Boolean {
+    if (error is IOException && error !is LinkDroppedException) return true
+    if (error is LinkDroppedException) {
+        return error.kind in setOf(
+            "",
+            "disconnected",
+            "send failed",
+            "stopped",
+            "offline",
+            "unreachable",
+            "hello send",
+            "hello response",
+        )
+    }
+    return false
 }
 
 private suspend fun deliverAndMark(
@@ -51,9 +76,9 @@ private suspend fun deliverAndMark(
     delivery: QueuedFollowUpDelivery,
 ) {
     when (deliverChatFollowUp(hosts, vault, db, store, hostId, agentId, delivery)) {
-        true -> store.markSending(hostId, agentId)
-        false -> store.markWaitingForLink(hostId, agentId)
-        null -> Unit
+        FollowUpDelivery.Sent -> store.markSending(hostId, agentId)
+        FollowUpDelivery.Offline -> store.markWaitingForLink(hostId, agentId)
+        FollowUpDelivery.Failed, FollowUpDelivery.Busy -> Unit
     }
 }
 

@@ -129,7 +129,7 @@ Tool { name string, summary string, input string?, output string?, status "runni
 |---|---|---|
 | `agents.list` | | `{agents:[Agent]}` |
 | `agent.start` | `{kind, cwd, prompt?, model?, effort?, mode, runtime?: "hc"|"herdr", worktree?:{branch}}` | `{agent:Agent}` |
-| `agent.send` | `{id, text, images?:[blob], cid?}` | `{}` (sent once the pane is quiet; a repeated `cid` from the same phone within 15 min answers `{}` without sending again, a failed send frees its `cid`) |
+| `agent.send` | `{id, text, images?:[blob], cid?}` | `{}` (sent once the pane is quiet; a repeated `cid` from the same phone within 15 min answers `{}` without sending again, a failed send frees its `cid`). A send the agent cannot take sets status `failed` and appends an `event` message with the reason. |
 | `agent.keys` | `{id, keys:[string]}` (hc key names: `enter`, `esc`, `up`, `down`, `left`, `right`, `tab`, `ctrl+c`, `y`, `n`, `1`...) | `{}` |
 | `agent.interrupt` | `{id}` | `{status}` |
 | `agent.kill` | `{id}` | `{}` |

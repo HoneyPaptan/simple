@@ -25,6 +25,7 @@ type Store struct {
 
 	herdrSaved     map[string]herdrSaved
 	herdrSavedPath string
+	sendFail       map[string]sendFail
 
 	pub func(ev string, data any)
 
@@ -46,6 +47,7 @@ func NewStore(publish func(string, any)) *Store {
 		meta:         make(map[string]userMeta),
 		promptTitles: make(map[string]string),
 		wsCounts:     make(map[string]int),
+		sendFail:     make(map[string]sendFail),
 		pub:          publish,
 	}
 }
@@ -62,7 +64,9 @@ func (s *Store) PollableAgentIDs() []string {
 	out := make([]string, 0, len(s.byID))
 	for id, a := range s.byID {
 		if a.Status == "failed" {
-			continue
+			if _, latched := s.sendFail[id]; !latched {
+				continue
+			}
 		}
 		if a.Runtime == "herdr" {
 			out = append(out, id)
@@ -157,10 +161,12 @@ func (s *Store) LoadSnapshot(terminals []hc.Terminal) {
 			delete(s.meta, id)
 			delete(s.byID, id)
 			delete(s.terms, id)
+			delete(s.sendFail, id)
 		}
 	}
 	for id, a := range nextAgents {
 		old, had := s.byID[id]
+		s.holdSendFail(a)
 		s.byID[id] = a
 		s.terms[id] = next[id]
 		if !had || !agentEqual(old, a) {
@@ -218,6 +224,7 @@ func (s *Store) HandleEvent(ev hc.Event) {
 			delete(s.byID, ev.Terminal)
 			delete(s.terms, ev.Terminal)
 			delete(s.meta, ev.Terminal)
+			delete(s.sendFail, ev.Terminal)
 			s.pub("agent.removed", wire.AgentRemoved{ID: ev.Terminal})
 			s.reconcileWorkspacesLocked()
 		}
@@ -232,6 +239,7 @@ func (s *Store) upsertLocked(t hc.Terminal) {
 	if had {
 		carryDerived(&a, old)
 	}
+	s.holdSendFail(&a)
 	s.byID[t.Address] = &a
 	s.terms[t.Address] = t
 	if !had || !agentEqual(old, &a) {
@@ -604,7 +612,13 @@ func (s *Store) SetAgentFields(id string, status string, waiting *string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	a, ok := s.byID[id]
-	if !ok || (a.Status == status && sameWaiting(a.Waiting, waiting)) {
+	if !ok {
+		return
+	}
+	if status == "working" {
+		s.dropLatchLocked(id, false)
+	}
+	if a.Status == status && sameWaiting(a.Waiting, waiting) {
 		return
 	}
 	a.Status = status

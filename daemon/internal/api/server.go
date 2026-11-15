@@ -56,12 +56,14 @@ type Server struct {
 	Approvals   *opencode.Approvals
 	Commands    *commands.Service
 
-	sends    sendDedupe
-	prompts  *promptQueue
-	promptMu sync.Mutex
-	mu       sync.Mutex
-	sessions map[*session]struct{}
-	byDevice map[string][]*session
+	sends       sendDedupe
+	prompts     *promptQueue
+	promptMu    sync.Mutex
+	sendWatchMu sync.Mutex
+	sendWatch   map[string]context.CancelFunc
+	mu          sync.Mutex
+	sessions    map[*session]struct{}
+	byDevice    map[string][]*session
 
 	servers []*http.Server
 }

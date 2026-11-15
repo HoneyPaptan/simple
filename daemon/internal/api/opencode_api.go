@@ -52,8 +52,14 @@ func (sess *session) callOpenCode(ctx context.Context, id *int64, p json.RawMess
 	}
 	cctx, cancel := context.WithTimeout(ctx, openCodeCallTimeout)
 	defer cancel()
-	if call(cctx, session, par.Text) != nil {
+	if err := call(cctx, session, par.Text); err != nil {
+		if par.Text != "" {
+			sess.srv.failIfStillWaiting(par.ID, par.Text, time.Now().Add(-2*time.Second).UnixMilli(), agents.CouldNotSend())
+		}
 		return false
+	}
+	if par.Text != "" {
+		sess.srv.noteDelivered(par.ID, par.Text)
 	}
 	sess.writeResult(ctx, id, result)
 	return true

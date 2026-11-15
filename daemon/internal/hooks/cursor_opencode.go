@@ -6,22 +6,23 @@ import (
 	"strings"
 	"time"
 
+	"sh.simple/simpled/internal/agents"
 	"sh.simple/simpled/internal/inbox"
 	"sh.simple/simpled/internal/wire"
 )
 
 type cursorInput struct {
-	ConversationID string `json:"conversation_id"`
-	TranscriptPath string `json:"transcript_path"`
-	SessionID      string `json:"session_id"`
-	Command        string `json:"command"`
-	ToolName       string `json:"tool_name"`
+	ConversationID string          `json:"conversation_id"`
+	TranscriptPath string          `json:"transcript_path"`
+	SessionID      string          `json:"session_id"`
+	Command        string          `json:"command"`
+	ToolName       string          `json:"tool_name"`
 	ToolInput      json.RawMessage `json:"tool_input"`
-	McpServerName  string `json:"mcp_server_name"`
-	Prompt         string `json:"prompt"`
-	Text           string `json:"text"`
-	Status         string `json:"status"`
-	Reason         string `json:"reason"`
+	McpServerName  string          `json:"mcp_server_name"`
+	Prompt         string          `json:"prompt"`
+	Text           string          `json:"text"`
+	Status         string          `json:"status"`
+	Reason         string          `json:"reason"`
 }
 
 func (d *Daemon) handleCursor(ctx context.Context, terminalID, event string, body json.RawMessage) (json.RawMessage, bool) {
@@ -105,7 +106,9 @@ func (d *Daemon) handleOpenCode(ctx context.Context, terminalID, event string, b
 		} else if st == "busy" || st == "running" {
 			d.Agents.SetAgentFields(terminalID, "working", nil)
 		} else if event == "session.error" {
-			d.Agents.SetAgentFields(terminalID, "failed", nil)
+			if a, ok := d.Agents.Get(terminalID); !ok || a.Status != "working" {
+				d.Agents.LatchSendFailure(terminalID, openCodeFailText(root), "")
+			}
 		}
 		return json.RawMessage(`{}`), true
 	case "permission.ask":
@@ -118,6 +121,19 @@ func (d *Daemon) handleOpenCode(ctx context.Context, terminalID, event string, b
 	default:
 		return json.RawMessage(`{}`), true
 	}
+}
+
+func openCodeFailText(root map[string]any) string {
+	for _, key := range []string{"error", "message", "reason"} {
+		raw, ok := root[key]
+		if !ok {
+			continue
+		}
+		if s, ok := raw.(string); ok && strings.TrimSpace(s) != "" {
+			return strings.TrimSpace(s)
+		}
+	}
+	return agents.CouldNotSend()
 }
 
 func opencodePermissionFields(root map[string]any) (title, body string) {

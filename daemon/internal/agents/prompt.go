@@ -10,10 +10,13 @@ import (
 	"sh.simple/simpled/internal/hc"
 )
 
-func SendPromptWhenQuiet(ctx context.Context, client *hc.Client, termID, kind, text string) {
+func SendPromptWhenQuiet(ctx context.Context, client *hc.Client, termID, kind, text string, done func(bool)) {
 	prompt := strings.TrimSpace(text)
 	if prompt == "" {
 		return
+	}
+	if done == nil {
+		done = func(bool) {}
 	}
 	ctx = context.WithoutCancel(ctx)
 	go func() {
@@ -22,11 +25,16 @@ func SendPromptWhenQuiet(ctx context.Context, client *hc.Client, termID, kind, t
 		tick := time.NewTicker(300 * time.Millisecond)
 		defer tick.Stop()
 		deadline := time.After(10 * time.Minute)
+		finish := func(sent bool) {
+			done(sent)
+		}
 		for {
 			select {
 			case <-ctx.Done():
+				finish(false)
 				return
 			case <-deadline:
+				finish(false)
 				return
 			case <-tick.C:
 				var rr struct {
@@ -34,6 +42,10 @@ func SendPromptWhenQuiet(ctx context.Context, client *hc.Client, termID, kind, t
 				}
 				if client.Call(ctx, "terminal.read", map[string]any{"terminal": termID}, &rr) != nil {
 					continue
+				}
+				if _, ok := ClassifyIdle(rr.Text, prompt); ok {
+					finish(false)
+					return
 				}
 				if paneReady(kind, rr.Text) && rr.Text == last {
 					stable++
@@ -44,10 +56,14 @@ func SendPromptWhenQuiet(ctx context.Context, client *hc.Client, termID, kind, t
 				if stable >= 2 {
 					sentMs := uint64(time.Now().UnixMilli())
 					var out json.RawMessage
-					_ = client.Call(ctx, "terminal.send", map[string]any{
+					err := client.Call(ctx, "terminal.send", map[string]any{
 						"terminal": termID,
 						"text":     prompt,
 					}, &out)
+					finish(err == nil)
+					if err != nil {
+						return
+					}
 					if kind == "claude" {
 						submitIfStuck(ctx, client, termID)
 					}

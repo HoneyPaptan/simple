@@ -66,7 +66,7 @@ fun followUpOffline(error: Throwable): Boolean {
     return false
 }
 
-private suspend fun deliverAndMark(
+internal suspend fun deliverAndMark(
     hosts: Hosts,
     vault: TokenVault,
     db: SimpleDatabase,

@@ -104,11 +104,15 @@ func (m *Manager) pollCursorStatus(agentID, path string, size int64, now time.Ti
 		m.cursorAgents = map[string]*cursorTrack{}
 	}
 	st := m.cursorAgents[agentID]
+	adopt := false
 	if st == nil {
 		st = &cursorTrack{}
 		if finishedBeforeWatch(path, now) {
 			st.lastUser = tail.LastUser
 			st.notified = true
+			st.size = size
+			st.stableAt = now.Add(-cursorQuietOnStart)
+			adopt = true
 		}
 		m.cursorAgents[agentID] = st
 	}
@@ -134,6 +138,10 @@ func (m *Manager) pollCursorStatus(agentID, path string, size int64, now time.Ti
 	prev := st.lastStatus
 	if want != st.lastStatus {
 		st.lastStatus = want
+	}
+	if adopt {
+		m.mu.Unlock()
+		return
 	}
 	notify := want == "done" && !st.notified && onDone != nil
 	var body string

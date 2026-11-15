@@ -15,10 +15,10 @@ import (
 )
 
 type Store struct {
-	mu       sync.Mutex
-	byID     map[string]*wire.Agent
-	terms    map[string]hc.Terminal
-	herdr    map[string]herdrRecord
+	mu           sync.Mutex
+	byID         map[string]*wire.Agent
+	terms        map[string]hc.Terminal
+	herdr        map[string]herdrRecord
 	meta         map[string]userMeta
 	promptTitles map[string]string
 	wsCounts     map[string]int
@@ -40,13 +40,13 @@ type userMeta struct {
 
 func NewStore(publish func(string, any)) *Store {
 	return &Store{
-		byID:     make(map[string]*wire.Agent),
-		terms:    make(map[string]hc.Terminal),
-		herdr:    make(map[string]herdrRecord),
+		byID:         make(map[string]*wire.Agent),
+		terms:        make(map[string]hc.Terminal),
+		herdr:        make(map[string]herdrRecord),
 		meta:         make(map[string]userMeta),
 		promptTitles: make(map[string]string),
 		wsCounts:     make(map[string]int),
-		pub:      publish,
+		pub:          publish,
 	}
 }
 
@@ -583,6 +583,13 @@ func (s *Store) SetAgentModel(id, model string) {
 	s.pub("agent.update", cp)
 }
 
+func sameWaiting(a, b *string) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return *a == *b
+}
+
 func contextsEqual(a, b *wire.AgentContext) bool {
 	if a == nil && b == nil {
 		return true
@@ -597,7 +604,7 @@ func (s *Store) SetAgentFields(id string, status string, waiting *string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	a, ok := s.byID[id]
-	if !ok {
+	if !ok || (a.Status == status && sameWaiting(a.Waiting, waiting)) {
 		return
 	}
 	a.Status = status

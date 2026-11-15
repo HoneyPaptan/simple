@@ -18,7 +18,7 @@ import (
 func TestDispatchAgentKillCallsHC(t *testing.T) {
 	var mu sync.Mutex
 	var kills []map[string]any
-	hcClient := startFakeHCKill(t, &mu, &kills)
+	hcClient := startFakeHCKill(t, &mu, "terminal.kill", &kills)
 	agentStore := agents.NewStore(func(string, any) {})
 	srv := New(Options{HC: hcClient, Agents: agentStore, Hub: hub.New("e_kill")})
 	ctx := context.Background()
@@ -47,7 +47,7 @@ func TestDispatchAgentKillCallsHC(t *testing.T) {
 	}
 }
 
-func startFakeHCKill(t *testing.T, mu *sync.Mutex, kills *[]map[string]any) *hc.Client {
+func startFakeHCKill(t *testing.T, mu *sync.Mutex, record string, got *[]map[string]any) *hc.Client {
 	t.Helper()
 	dir := t.TempDir()
 	sock := filepath.Join(dir, "hc.sock")
@@ -77,6 +77,13 @@ func startFakeHCKill(t *testing.T, mu *sync.Mutex, kills *[]map[string]any) *hc.
 					if json.Unmarshal(line, &req) != nil {
 						return
 					}
+					if req.Method == record {
+						var params map[string]any
+						_ = json.Unmarshal(req.Params, &params)
+						mu.Lock()
+						*got = append(*got, params)
+						mu.Unlock()
+					}
 					switch req.Method {
 					case "hello":
 						writeTestLine(conn, map[string]any{"id": req.ID, "jsonrpc": "2.0", "result": map[string]any{"generation": 1}})
@@ -90,13 +97,6 @@ func startFakeHCKill(t *testing.T, mu *sync.Mutex, kills *[]map[string]any) *hc.
 							"id": req.ID, "jsonrpc": "2.0",
 							"result": map[string]any{"terminals": []any{}},
 						})
-					case "terminal.kill":
-						var params map[string]any
-						_ = json.Unmarshal(req.Params, &params)
-						mu.Lock()
-						*kills = append(*kills, params)
-						mu.Unlock()
-						writeTestLine(conn, map[string]any{"id": req.ID, "jsonrpc": "2.0", "result": map[string]any{}})
 					default:
 						writeTestLine(conn, map[string]any{"id": req.ID, "jsonrpc": "2.0", "result": map[string]any{}})
 					}

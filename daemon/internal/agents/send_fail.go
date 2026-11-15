@@ -26,11 +26,7 @@ var authFailPhrases = []string{
 	"hook failed",
 	"hooks failed",
 	"failed to run hook",
-	"paste code here if prompted",
-	"browser didn't open",
 	"oauth error",
-	"text style that looks best",
-	"select login method",
 }
 
 var loginScreenPhrases = []string{
@@ -100,7 +96,10 @@ func ClassifyFresh(prev, next, prompt string) (string, bool) {
 }
 
 func matchAuth(screen, prompt string) (string, bool) {
-	return matchPhrasesN(screen, prompt, authFailPhrases, 80)
+	if line, ok := matchPhrasesN(screen, prompt, loginScreenPhrases, 80); ok {
+		return line, true
+	}
+	return matchPhrasesN(screen, prompt, authFailPhrases, 12)
 }
 
 func matchPhrases(screen, prompt string, phrases []string) (string, bool) {

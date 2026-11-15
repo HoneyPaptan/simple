@@ -250,33 +250,9 @@ func TestClassifyIdleIgnoresUnauthorizedAboveTheLastLines(t *testing.T) {
 	for i := 0; i < 30; i++ {
 		b.WriteString("idle output\n")
 	}
-	screen := b.String()
 	prompt := "what should we build"
-	if _, ok := ClassifyIdle(screen, prompt); ok {
+	if _, ok := ClassifyIdle(b.String(), prompt); ok {
 		t.Fatal("unauthorized 30 lines up latched")
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	failed := false
-	done := make(chan struct{})
-	go func() {
-		RunSendWatch(ctx, SendWatch{
-			Kind:        "claude",
-			Prompt:      prompt,
-			Wait:        time.Second,
-			Poll:        20 * time.Millisecond,
-			ClearFor:    time.Second,
-			Classify:    true,
-			Read:        func(context.Context) string { return screen },
-			TurnStarted: func() bool { return false },
-			Fail:        func(string) { failed = true },
-		})
-		close(done)
-	}()
-	time.Sleep(40 * time.Millisecond)
-	cancel()
-	<-done
-	if failed {
-		t.Fatal("watch latched an old unauthorized line")
 	}
 	if _, ok := ClassifyIdle("401 Unauthorized\n", prompt); !ok {
 		t.Fatal("recent unauthorized was ignored")

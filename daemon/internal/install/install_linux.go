@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 )
 
+const unitName = "simpled.service"
+
 func Install(selfPath string) error {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -17,7 +19,7 @@ func Install(selfPath string) error {
 	if err := copyBinary(selfPath, dest, 0o755); err != nil {
 		return err
 	}
-	unitPath := filepath.Join(home, ".config", "systemd", "user", "simpled.service")
+	unitPath := filepath.Join(home, ".config", "systemd", "user", unitName)
 	unit := fmt.Sprintf(`[Unit]
 Description=simpled host daemon
 After=network.target
@@ -36,8 +38,8 @@ WantedBy=default.target
 		return err
 	}
 	run("systemctl", "--user", "daemon-reload")
-	run("systemctl", "--user", "enable", "simpled.service")
-	run("systemctl", "--user", "restart", "simpled.service")
+	run("systemctl", "--user", "enable", unitName)
+	run("systemctl", "--user", "restart", unitName)
 	if lingerOff() {
 		fmt.Println("loginctl enable-linger $USER")
 	}
@@ -45,10 +47,10 @@ WantedBy=default.target
 }
 
 func Uninstall() error {
-	run("systemctl", "--user", "disable", "--now", "simpled.service")
+	run("systemctl", "--user", "disable", "--now", unitName)
 	home, _ := os.UserHomeDir()
 	if home != "" {
-		_ = os.Remove(filepath.Join(home, ".config", "systemd", "user", "simpled.service"))
+		_ = os.Remove(filepath.Join(home, ".config", "systemd", "user", unitName))
 	}
 	run("systemctl", "--user", "daemon-reload")
 	dest := filepath.Join(home, ".local", "bin", "simpled")
@@ -60,4 +62,6 @@ func LingerEnabled() bool {
 	return !lingerOff()
 }
 
-
+func ServiceComingUp() bool {
+	return systemdServiceComingUp(unitName, commandOutput)
+}

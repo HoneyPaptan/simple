@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"time"
 
 	"sh.simple/simpled/internal/config"
 	"sh.simple/simpled/internal/control"
@@ -20,7 +21,7 @@ func printHelp(w *os.File) {
 	fmt.Fprintln(w, "  devices rm <id>      Revoke a paired phone")
 	fmt.Fprintln(w, "  install              Install the user service and agent hooks")
 	fmt.Fprintln(w, "  uninstall            Remove the user service and agent hooks")
-	fmt.Fprintln(w, "  status               Show whether the user service is running")
+	fmt.Fprintln(w, "  status               Show whether the user service is running or starting")
 	fmt.Fprintln(w, "  hooks install        Install agent hook scripts")
 	fmt.Fprintln(w, "  hooks uninstall      Remove agent hook scripts")
 	fmt.Fprintln(w, "  hook                 Agent hook entry (internal)")
@@ -53,14 +54,50 @@ func exitNotRunning() {
 	os.Exit(1)
 }
 
+const (
+	statusRunning   = "running"
+	statusStarting  = "starting"
+	statusDown      = "down"
+	statusStartWait = 2 * time.Second
+	statusPoll      = 20 * time.Millisecond
+)
+
 func runStatus() {
 	store := config.NewStore("", "")
-	if !control.Alive(store.ControlSock) {
+	switch observeDaemon(store.ControlSock, install.ServiceComingUp, statusStartWait) {
+	case statusRunning:
+		fmt.Println("simpled is running")
+		if !install.LingerEnabled() {
+			fmt.Println("Tip: run loginctl enable-linger $USER so simpled keeps running after you log out.")
+		}
+	case statusStarting:
+		fmt.Println("simpled is starting")
+		os.Exit(1)
+	default:
 		fmt.Println(notRunningMsg())
 		os.Exit(1)
 	}
-	fmt.Println("simpled is running")
-	if !install.LingerEnabled() {
-		fmt.Println("Tip: run loginctl enable-linger $USER so simpled keeps running after you log out.")
+}
+
+func observeDaemon(sock string, comingUp func() bool, wait time.Duration) string {
+	if control.Alive(sock) {
+		return statusRunning
 	}
+	if !comingUp() {
+		return statusDown
+	}
+	deadline := time.Now().Add(wait)
+	for time.Now().Before(deadline) {
+		time.Sleep(statusPoll)
+		if control.Alive(sock) {
+			return statusRunning
+		}
+	}
+	if control.Alive(sock) {
+		return statusRunning
+	}
+	if comingUp() {
+		return statusStarting
+	}
+	return statusDown
 }

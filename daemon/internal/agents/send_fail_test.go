@@ -236,11 +236,40 @@ func TestSendWatchFailsClaudeLoginBeforeTimeout(t *testing.T) {
 			}
 		},
 	})
-	if got != "Choose the text style that looks best with your terminal" {
+	if got != "Claude is not signed in. Open its terminal to sign in." {
 		t.Fatalf("fail %q", got)
 	}
 	if failedAt.IsZero() || failedAt.Sub(start) > 300*time.Millisecond {
 		t.Fatalf("login screen waited %s", failedAt.Sub(start))
+	}
+}
+
+func TestSignInReasonMapsLoginScreensAndKeepsOtherLines(t *testing.T) {
+	want := "Claude is not signed in. Open its terminal to sign in."
+	for _, line := range []string{
+		"Choose the text style that looks best with your terminal",
+		"Select login method:",
+		"Browser didn't open? Use the url below to sign in (c to copy)",
+		"Paste code here if prompted >",
+	} {
+		if got := SignInReason("claude", line); got != want {
+			t.Fatalf("%q -> %q", line, got)
+		}
+	}
+	if got := SignInReason("opencode", "Paste code here if prompted >"); got != "OpenCode is not signed in. Open its terminal to sign in." {
+		t.Fatalf("kind %q", got)
+	}
+	raw := "invalid api key"
+	if got := SignInReason("claude", raw); got != raw {
+		t.Fatalf("api key %q", got)
+	}
+	raw = "Not logged in. Run /login"
+	if got := SignInReason("claude", raw); got != raw {
+		t.Fatalf("login line %q", got)
+	}
+	raw = "failed to run hook"
+	if got := SignInReason("claude", raw); got != raw {
+		t.Fatalf("hook %q", got)
 	}
 }
 

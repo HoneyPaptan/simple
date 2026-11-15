@@ -33,6 +33,13 @@ var authFailPhrases = []string{
 	"select login method",
 }
 
+var loginScreenPhrases = []string{
+	"paste code here if prompted",
+	"browser didn't open",
+	"text style that looks best",
+	"select login method",
+}
+
 var spawnFailPhrases = []string{
 	"command not found",
 	"no such file",
@@ -48,6 +55,20 @@ func ExitedLine(kind string) string {
 
 func CouldNotSend() string {
 	return "Could not send."
+}
+
+func NotSignedIn(kind string) string {
+	return KindLabel(kind) + " is not signed in. Open its terminal to sign in."
+}
+
+func SignInReason(kind, line string) string {
+	lower := strings.ToLower(line)
+	for _, p := range loginScreenPhrases {
+		if strings.Contains(lower, p) {
+			return NotSignedIn(kind)
+		}
+	}
+	return line
 }
 
 func ClassifyIdle(screen, prompt string) (string, bool) {
@@ -249,7 +270,7 @@ func RunSendWatch(ctx context.Context, w SendWatch) {
 			if ok {
 				failed = true
 				if w.Fail != nil {
-					w.Fail(text)
+					w.Fail(SignInReason(w.Kind, text))
 				}
 				clearBy = time.Now().Add(clearFor)
 			} else if !time.Now().Before(deadline) {

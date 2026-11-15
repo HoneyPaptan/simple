@@ -48,9 +48,13 @@ func (srv *Server) failIfStillWaiting(id, prompt string, since int64, fallback s
 	if srv.agentWorking(id) || srv.promptLanded(id, prompt, since) {
 		return
 	}
+	kind := "shell"
+	if a, ok := srv.Agents.Get(id); ok && a.Kind != "" {
+		kind = a.Kind
+	}
 	text := fallback
 	if line, ok := agents.ClassifyIdle(srv.readAgentScreen(context.Background(), id), prompt); ok {
-		text = line
+		text = agents.SignInReason(kind, line)
 	}
 	if strings.TrimSpace(text) == "" {
 		text = agents.CouldNotSend()

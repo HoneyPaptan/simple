@@ -187,6 +187,77 @@ func TestLatchSurvivesIdlePollAndClearsOnWorking(t *testing.T) {
 	}
 }
 
+const claudeThemeScreen = "Welcome to Claude Code v2.1.288\n\n Let's get started.\n\n Choose the text style that looks best with your terminal\n To change this later, run /theme\n\n     Auto (match terminal)\n ❯ ✔ Dark mode\n     Light mode\n     Dark mode (colorblind-friendly)\n     Light mode (colorblind-friendly)\n     Dark mode (ANSI colors only)\n     Light mode (ANSI colors only)\n\n 1  function greet() {\n 2 -  console.log(\"Hello, World!\");\n 2 +  console.log(\"Hello, Claude!\");\n 3  }\n Syntax theme: Monokai Extended (ctrl+t to disable)\n"
+
+const claudeLoginMethodScreen = "Welcome to Claude Code v2.1.288\n\n Claude Code can be used with your Claude subscription or billed based on API\n usage through your Console account.\n\n Select login method:\n\n ❯ 1. Claude account with subscription\n   2. Anthropic Console account\n   3. 3rd-party platform\n"
+
+const claudeLoggedOutScreen = "Welcome to Claude Code v2.1.288\n\n Browser didn't open? Use the url below to sign in (c to copy)\n\n https://claude.com/cai/oauth/authorize?code=redacted\n\n Paste code here if prompted >\n"
+
+func TestClassifyIdleMatchesClaudeLoggedOutScreen(t *testing.T) {
+	prompt := "what should we build"
+	line, ok := ClassifyIdle(claudeThemeScreen, prompt)
+	if !ok || line != "Choose the text style that looks best with your terminal" {
+		t.Fatalf("theme %q %v", line, ok)
+	}
+	line, ok = ClassifyIdle(claudeLoginMethodScreen, prompt)
+	if !ok || line != "Select login method:" {
+		t.Fatalf("method %q %v", line, ok)
+	}
+	line, ok = ClassifyIdle(claudeLoggedOutScreen, prompt)
+	if !ok || line != "Paste code here if prompted >" {
+		t.Fatalf("paste %q %v", line, ok)
+	}
+	line, ok = ClassifyIdle("OAuth error: Invalid code. Please make sure the full code was copied\n", prompt)
+	if !ok || !strings.Contains(line, "OAuth error") {
+		t.Fatalf("oauth line %q %v", line, ok)
+	}
+	if _, ok := ClassifyIdle(claudeLoggedOutScreen, "Paste code here if prompted >"); !ok {
+		t.Fatal("overlap hid the other login line")
+	}
+}
+
+func TestSendWatchFailsClaudeLoginBeforeTimeout(t *testing.T) {
+	var got string
+	var failedAt time.Time
+	start := time.Now()
+	RunSendWatch(context.Background(), SendWatch{
+		Kind:        "claude",
+		Prompt:      "what should we build",
+		Wait:        time.Second,
+		Poll:        20 * time.Millisecond,
+		ClearFor:    30 * time.Millisecond,
+		Classify:    true,
+		Read:        func(context.Context) string { return claudeThemeScreen },
+		TurnStarted: func() bool { return false },
+		Fail: func(text string) {
+			if failedAt.IsZero() {
+				got = text
+				failedAt = time.Now()
+			}
+		},
+	})
+	if got != "Choose the text style that looks best with your terminal" {
+		t.Fatalf("fail %q", got)
+	}
+	if failedAt.IsZero() || failedAt.Sub(start) > 300*time.Millisecond {
+		t.Fatalf("login screen waited %s", failedAt.Sub(start))
+	}
+}
+
+func TestHoldLatchedAuthKeepsLoginTextAndAllowsANormalPrompt(t *testing.T) {
+	reason, hold := HoldLatchedAuth("Paste code here if prompted >", claudeLoggedOutScreen, "simp6 follow up")
+	if !hold || reason != "Paste code here if prompted >" {
+		t.Fatalf("hold %q %v", reason, hold)
+	}
+	normal := "❯ what should we build\n"
+	if _, hold := HoldLatchedAuth("Paste code here if prompted >", normal, "retry the prompt"); hold {
+		t.Fatal("normal prompt was held")
+	}
+	if _, hold := HoldLatchedAuth("", claudeLoggedOutScreen, "simp6 follow up"); hold {
+		t.Fatal("unlatched screen was held")
+	}
+}
+
 func containsID(ids []string, want string) bool {
 	for _, id := range ids {
 		if id == want {

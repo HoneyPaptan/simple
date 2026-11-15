@@ -11,9 +11,12 @@ const maxQueuedPrompts = 20
 
 var errPromptQueueFull = errors.New("too many queued messages")
 
+var errSendHeld = errors.New("send held")
+
 type queuedPrompt struct {
 	text   string
 	device string
+	key    string
 }
 
 type promptQueue struct {
@@ -23,6 +26,7 @@ type promptQueue struct {
 	busy       func(id string) bool
 	authorized func(device string) bool
 	deliver    func(ctx context.Context, id, text string) error
+	release    func(key string)
 	poll       time.Duration
 	settle     time.Duration
 }
@@ -51,7 +55,7 @@ func (q *promptQueue) Submit(ctx context.Context, id, text, device string) (bool
 		return false, errPromptQueueFull
 	}
 	start := len(q.pending[id]) == 0
-	q.pending[id] = append(q.pending[id], queuedPrompt{text: text, device: device})
+	q.pending[id] = append(q.pending[id], queuedPrompt{text: text, device: device, key: sendReleaseKey(ctx)})
 	q.mu.Unlock()
 	if start {
 		go q.drain(id)
@@ -126,8 +130,19 @@ func (q *promptQueue) drain(id string) {
 		if !ok {
 			return
 		}
-		if q.authorized(p.device) {
-			_ = q.deliver(ctx, id, p.text)
+		if !q.authorized(p.device) {
+			continue
+		}
+		err := q.deliver(ctx, id, p.text)
+		if errors.Is(err, errSendHeld) {
+			q.releaseKey(p.key)
 		}
 	}
+}
+
+func (q *promptQueue) releaseKey(key string) {
+	if q == nil || q.release == nil || key == "" {
+		return
+	}
+	q.release(key)
 }

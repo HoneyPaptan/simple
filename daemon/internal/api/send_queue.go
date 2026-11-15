@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"time"
 
 	"sh.simple/simpled/internal/agents"
@@ -15,7 +16,9 @@ func (srv *Server) promptQueue() *promptQueue {
 	srv.promptMu.Lock()
 	defer srv.promptMu.Unlock()
 	if srv.prompts == nil {
-		srv.prompts = newPromptQueue(srv.agentWorking, srv.deviceAuthorized, srv.deliverPrompt)
+		q := newPromptQueue(srv.agentWorking, srv.deviceAuthorized, srv.deliverPrompt)
+		q.release = srv.sends.release
+		srv.prompts = q
 	}
 	return srv.prompts
 }
@@ -29,6 +32,10 @@ func (srv *Server) agentWorking(id string) bool {
 }
 
 func (srv *Server) deliverPrompt(ctx context.Context, id, text string) error {
+	if srv.refuseLatchedAuth(ctx, id, text) {
+		log.Printf("send held %s", id)
+		return errSendHeld
+	}
 	if srv.Agents != nil && srv.Agents.AgentRuntime(id) == "herdr" {
 		if srv.Herdr == nil || srv.Herdr.Status() != herdr.StatusUp {
 			return errors.New("herdr unavailable")
@@ -92,6 +99,11 @@ func (sess *session) queueSend(ctx context.Context, id *int64, p json.RawMessage
 		return false
 	}
 	queued, err := sess.srv.promptQueue().Submit(ctx, in.ID, in.Text, sess.deviceID)
+	if errors.Is(err, errSendHeld) {
+		sess.releaseSend(ctx)
+		sess.writeResult(ctx, id, map[string]any{})
+		return true
+	}
 	if errors.Is(err, errPromptQueueFull) {
 		sess.writeErr(ctx, id, "bad_request", err.Error())
 		return true

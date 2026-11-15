@@ -10,6 +10,18 @@ import (
 	"sh.simple/simpled/internal/wire"
 )
 
+func (srv *Server) refuseLatchedAuth(ctx context.Context, id, text string) bool {
+	if srv == nil || srv.Agents == nil || id == "" {
+		return false
+	}
+	reason, ok := srv.Agents.SendFailureText(id)
+	if !ok {
+		return false
+	}
+	_, hold := agents.HoldLatchedAuth(reason, srv.readAgentScreen(ctx, id), text)
+	return hold
+}
+
 func (srv *Server) noteDelivered(id, prompt string) {
 	if srv == nil || srv.Agents == nil || id == "" {
 		return

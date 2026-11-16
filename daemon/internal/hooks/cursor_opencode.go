@@ -8,6 +8,7 @@ import (
 
 	"sh.simple/simpled/internal/agents"
 	"sh.simple/simpled/internal/inbox"
+	"sh.simple/simpled/internal/opencode"
 	"sh.simple/simpled/internal/wire"
 )
 
@@ -124,14 +125,8 @@ func (d *Daemon) handleOpenCode(ctx context.Context, terminalID, event string, b
 }
 
 func openCodeFailText(root map[string]any) string {
-	for _, key := range []string{"error", "message", "reason"} {
-		raw, ok := root[key]
-		if !ok {
-			continue
-		}
-		if s, ok := raw.(string); ok && strings.TrimSpace(s) != "" {
-			return strings.TrimSpace(s)
-		}
+	if msg := opencode.MessageFromEvent(root); msg != "" {
+		return msg
 	}
 	return agents.CouldNotSend()
 }

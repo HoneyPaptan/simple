@@ -1,10 +1,8 @@
 package transcript
 
 import (
-	"context"
 	"time"
 
-	"sh.simple/simpled/internal/opencode"
 	"sh.simple/simpled/internal/wire"
 )
 
@@ -25,14 +23,4 @@ func openCodeSession(agent wire.Agent) string {
 		return ""
 	}
 	return *agent.Session
-}
-
-func (m *Manager) openCodeMessages(session string) ([]wire.Message, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), openCodeTimeout)
-	defer cancel()
-	items, err := m.openCode.Messages(ctx, session)
-	if err != nil {
-		return nil, err
-	}
-	return opencode.ToWire(items), nil
 }

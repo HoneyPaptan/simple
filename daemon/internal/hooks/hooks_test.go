@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"sh.simple/simpled/internal/agents"
+	"sh.simple/simpled/internal/config"
 	"sh.simple/simpled/internal/hc"
 	"sh.simple/simpled/internal/hooks"
 	"sh.simple/simpled/internal/inbox"
-	"sh.simple/simpled/internal/config"
 	"sh.simple/simpled/internal/transcript"
 	"sh.simple/simpled/internal/wire"
 )
@@ -33,6 +33,22 @@ func testHookEnv(t *testing.T) (*hooks.Daemon, *inbox.Store, *agents.Store) {
 	agentStore.LoadSnapshot([]hc.Terminal{term})
 	d := hooks.New(inboxStore, agentStore, transcripts, "simpled")
 	return d, inboxStore, agentStore
+}
+
+func TestOpenCodeSessionErrorUsesProviderMessage(t *testing.T) {
+	d, _, agentStore := testHookEnv(t)
+	body := []byte(`{"type":"session.error","properties":{"sessionID":"ses_1","error":{"name":"APIError","data":{"message":"invalid api key"}}}}`)
+	if _, ok := d.Handle(context.Background(), "opencode", "t1", "session.error", body); !ok {
+		t.Fatal("not handled")
+	}
+	ev, ok := agentStore.SendEvent("t1")
+	if !ok || ev.Text == nil || *ev.Text != "invalid api key" {
+		t.Fatalf("event %+v", ev)
+	}
+	a, _ := agentStore.Get("t1")
+	if a.Status != "failed" {
+		t.Fatalf("status %s", a.Status)
+	}
 }
 
 func TestSessionStartBindsTranscript(t *testing.T) {

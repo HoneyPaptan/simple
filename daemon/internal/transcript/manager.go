@@ -32,10 +32,12 @@ type Manager struct {
 	openCodeLimits map[string]int
 	ctxKeys        map[string]string
 
-	setAgentStatus func(string, string)
-	onCursorDone   func(string, string)
-	cursorAgents   map[string]*cursorTrack
-	cursorSeen     map[string]map[string]int64
+	setAgentStatus  func(string, string)
+	onCursorDone    func(string, string)
+	observeOpenCode func(string, []opencode.Item) bool
+	sendFailureText func(string) (string, bool)
+	cursorAgents    map[string]*cursorTrack
+	cursorSeen      map[string]map[string]int64
 }
 
 type sessionMeta struct {
@@ -75,6 +77,13 @@ func (m *Manager) SetContextSync(onContext func(string, *wire.AgentContext), pol
 	m.mu.Lock()
 	m.onContext = onContext
 	m.pollIDs = pollIDs
+	m.mu.Unlock()
+}
+
+func (m *Manager) SetOpenCodeObserver(observe func(string, []opencode.Item) bool, failureText func(string) (string, bool)) {
+	m.mu.Lock()
+	m.observeOpenCode = observe
+	m.sendFailureText = failureText
 	m.mu.Unlock()
 }
 
@@ -304,12 +313,12 @@ func (m *Manager) tailAgent(agentID string, lastSize map[string]int64) {
 func (m *Manager) ReadPage(agentID string, agent wire.Agent, before *string, limit int) ([]wire.Message, *string, int64, error) {
 	var msgs []wire.Message
 	if session := openCodeSession(agent); session != "" {
-		all, err := m.openCodeMessages(session)
+		items, err := m.openCodeItems(session)
 		if err != nil {
 			return nil, nil, 0, err
 		}
 		m.applyOpenCodeContext(agentID, agent, session)
-		msgs = all
+		msgs = m.withoutOpenCodeEcho(agentID, opencode.ToWire(items), items)
 	} else {
 		path := m.PathForAgent(agentID, agent, "")
 		if path == "" {
@@ -341,8 +350,13 @@ func (m *Manager) refreshOpenCode(agentID string, agent wire.Agent, session stri
 	m.mu.Lock()
 	same := m.openCodeSums[agentID]
 	m.mu.Unlock()
-	msgs, err := m.openCodeMessages(session)
-	if err == nil && len(msgs) > 0 {
+	items, err := m.openCodeItems(session)
+	if err != nil {
+		m.applyOpenCodeContext(agentID, agent, session)
+		return
+	}
+	msgs := m.withoutOpenCodeEcho(agentID, opencode.ToWire(items), items)
+	if len(msgs) > 0 {
 		raw, _ := json.Marshal(msgs)
 		sum := sha256.Sum256(raw)
 		changed = sum != same
@@ -358,6 +372,37 @@ func (m *Manager) refreshOpenCode(agentID string, agent wire.Agent, session stri
 		}
 	}
 	m.applyOpenCodeContext(agentID, agent, session)
+}
+
+func (m *Manager) openCodeItems(session string) ([]opencode.Item, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), openCodeTimeout)
+	defer cancel()
+	return m.openCode.Messages(ctx, session)
+}
+
+func (m *Manager) withoutOpenCodeEcho(agentID string, msgs []wire.Message, items []opencode.Item) []wire.Message {
+	m.mu.Lock()
+	observe := m.observeOpenCode
+	failureText := m.sendFailureText
+	m.mu.Unlock()
+	omit := false
+	if observe != nil && items != nil {
+		omit = observe(agentID, items)
+	} else if failureText != nil {
+		_, omit = failureText(agentID)
+	}
+	if !omit {
+		return msgs
+	}
+	failID, text, ts, ok := opencode.FailedTurn(items)
+	if !ok && failureText != nil {
+		text, _ = failureText(agentID)
+	}
+	next := opencode.OmitFailureEcho(msgs, failID, text)
+	if ok && failID != "" && len(next) != len(msgs) {
+		next = append(next, opencode.BlankAssistant(failID, ts))
+	}
+	return next
 }
 
 func (m *Manager) applyOpenCodeContext(agentID string, agent wire.Agent, session string) {

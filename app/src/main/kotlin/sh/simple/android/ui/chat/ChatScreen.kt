@@ -789,7 +789,8 @@ fun ChatScreen(
                 if (failed) {
                     item(key = "send-failed") {
                         val userLines = decodedMessages.filter { it.role == "user" }.mapNotNull { it.text }
-                        val showRetry = sendFailureRetryVisible(true, outbound, userLines)
+                        val delivery = app.chatOutbound.deliveryFor(hostId, agentId)
+                        val showRetry = sendFailureRetryVisible(true, outbound, userLines, delivery != null)
                         Row(
                             Modifier
                                 .fillMaxWidth()

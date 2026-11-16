@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"sh.simple/simpled/internal/hc"
+	"sh.simple/simpled/internal/opencode"
+	"sh.simple/simpled/internal/wire"
 )
 
 func TestClassifyIdleSkipsPromptEcho(t *testing.T) {
@@ -299,6 +301,37 @@ func TestHoldLatchedAuthKeepsLoginTextAndAllowsANormalPrompt(t *testing.T) {
 	}
 	if _, hold := HoldLatchedAuth("", claudeLoggedOutScreen, "simp6 follow up"); hold {
 		t.Fatal("unlatched screen was held")
+	}
+}
+
+func TestOpenCodeFailureLatchesAfterSend(t *testing.T) {
+	s := NewStore(func(string, any) {})
+	s.Upsert(wire.Agent{ID: "t1", Kind: "opencode", Status: "idle"})
+	old := []opencode.Item{{ID: "old", Type: "idle", Outcome: "failed", Error: []byte(`"stale key"`)}}
+	s.NoteOpenCodeSend("t1", opencode.FailedIDs(old), time.Now().UnixMilli())
+	if s.ObserveOpenCodeTurn("t1", old) {
+		t.Fatal("baseline failure latched")
+	}
+	now := time.Now().UnixMilli()
+	items := []opencode.Item{
+		{ID: "u", Type: "user", Text: "probe", Time: opencode.Times{Created: now}},
+		{ID: "f", Type: "idle", Outcome: "failed", Error: []byte(`{"message":"invalid api key"}`), Time: opencode.Times{Created: now}},
+	}
+	if !s.ObserveOpenCodeTurn("t1", items) {
+		t.Fatal("new failure not latched")
+	}
+	a, ok := s.Get("t1")
+	if !ok || a.Status != "failed" {
+		t.Fatalf("status %+v", a)
+	}
+	ev, ok := s.SendEvent("t1")
+	if !ok || ev.ID != "sf:t1" || ev.Text == nil || *ev.Text != "invalid api key" {
+		t.Fatalf("event %+v", ev)
+	}
+	s.SetAgentFields("t1", "done", nil)
+	a, _ = s.Get("t1")
+	if a.Status != "failed" {
+		t.Fatalf("done clobbered %s", a.Status)
 	}
 }
 

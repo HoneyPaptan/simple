@@ -7,6 +7,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"sh.simple/simpled/internal/opencode"
 	"sh.simple/simpled/internal/wire"
 )
 
@@ -311,12 +312,26 @@ func (s *Store) LatchSendFailure(id, text string) {
 		return
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	if a, ok := s.byID[id]; ok && a.Status == "working" {
-		return
+	latched := s.latchLocked(id, text, false)
+	release := s.onSendFail
+	s.mu.Unlock()
+	if latched && release != nil {
+		release(id)
+	}
+}
+
+func (s *Store) latchLocked(id, text string, force bool) bool {
+	text = strings.TrimSpace(text)
+	if id == "" || text == "" {
+		return false
+	}
+	if a, ok := s.byID[id]; ok && a.Status == "working" && !force {
+		return false
 	}
 	if cur, ok := s.sendFail[id]; ok && strings.TrimSpace(cur.text) != "" {
-		return
+		if !force || cur.text == text || !genericSendFail(s.byID[id], cur.text) {
+			return false
+		}
 	}
 	if s.sendFail == nil {
 		s.sendFail = make(map[string]sendFail)
@@ -332,6 +347,7 @@ func (s *Store) LatchSendFailure(id, text string) {
 		s.pub("agent.update", cp)
 	}
 	s.pub("transcript.append", wire.TranscriptAppend{ID: id, Messages: []wire.Message{msg}})
+	return true
 }
 
 func (s *Store) ClearSendFailure(id string) {
@@ -425,4 +441,122 @@ func (s *Store) dropLatchLocked(id string, restore bool) {
 	a.UpdatedMs = time.Now().UnixMilli()
 	cp := *a
 	s.pub("agent.update", cp)
+}
+
+type openCodePending struct {
+	at       int64
+	baseline map[string]bool
+}
+
+func genericSendFail(a *wire.Agent, text string) bool {
+	kind := ""
+	if a != nil {
+		kind = a.Kind
+	}
+	return text == CouldNotSend() || text == DidNotStart(kind) || text == ExitedLine(kind)
+}
+
+func (s *Store) latchedTextLocked(id string) string {
+	cur, ok := s.sendFail[id]
+	if !ok || cur.event.Text == nil {
+		return ""
+	}
+	return strings.TrimSpace(cur.text)
+}
+
+func (s *Store) NoteOpenCodeSend(id string, failedIDs []string, at int64) {
+	if s == nil || id == "" {
+		return
+	}
+	if at <= 0 {
+		at = time.Now().UnixMilli()
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.ocSend == nil {
+		s.ocSend = make(map[string]openCodePending)
+	}
+	base := make(map[string]bool, len(failedIDs))
+	for _, itemID := range failedIDs {
+		if itemID != "" {
+			base[itemID] = true
+		}
+	}
+	s.ocSend[id] = openCodePending{at: at, baseline: base}
+}
+
+func (s *Store) ObserveOpenCodeTurn(id string, items []opencode.Item) bool {
+	if s == nil || id == "" {
+		return false
+	}
+	s.mu.Lock()
+	latched := false
+	if failID, text, ts, ok := opencode.FailedTurn(items); ok && s.shouldLatchOpenCodeLocked(id, failID, text, ts) {
+		latched = s.latchLocked(id, text, true)
+	} else if s.openCodeSettledLocked(id, items) {
+		delete(s.ocSend, id)
+	}
+	failed := s.latchedTextLocked(id) != ""
+	release := s.onSendFail
+	s.mu.Unlock()
+	if latched && release != nil {
+		release(id)
+	}
+	return failed
+}
+
+func (s *Store) shouldLatchOpenCodeLocked(id, itemID, text string, ts int64) bool {
+	pending, ok := s.ocSend[id]
+	if !ok || strings.TrimSpace(text) == "" {
+		return false
+	}
+	if itemID != "" && pending.baseline[itemID] && !afterSend(ts, pending.at) {
+		return false
+	}
+	return true
+}
+
+func (s *Store) openCodeSettledLocked(id string, items []opencode.Item) bool {
+	pending, ok := s.ocSend[id]
+	if !ok {
+		return false
+	}
+	if _, _, _, failed := opencode.FailedTurn(items); failed {
+		return false
+	}
+	var sawUser bool
+	var lastUserTs int64
+	var idleAfter bool
+	var idleTs int64
+	for _, it := range items {
+		switch it.Type {
+		case "user":
+			if strings.TrimSpace(it.Text) == "" {
+				continue
+			}
+			sawUser = true
+			lastUserTs = it.Time.Created
+			idleAfter = false
+			idleTs = 0
+		case "idle":
+			if sawUser && it.Outcome != "failed" {
+				idleAfter = true
+				idleTs = it.Time.Created
+			}
+		}
+	}
+	if !idleAfter {
+		return false
+	}
+	return afterSend(lastUserTs, pending.at) || afterSend(idleTs, pending.at)
+}
+
+func afterSend(ts, at int64) bool {
+	if ts <= 0 || at <= 0 {
+		return false
+	}
+	if ts < 1_000_000_000_000 {
+		ts *= 1000
+	}
+	return ts >= at-2000
 }

@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"log"
 	"strings"
 	"time"
 
@@ -13,8 +14,19 @@ func (srv *Server) noteDelivered(id, prompt string) {
 	if srv == nil || srv.Agents == nil || id == "" {
 		return
 	}
+	log.Printf("agent.send %s", id)
 	srv.Agents.ClearSendFailure(id)
 	srv.watchSend(id, prompt, true)
+}
+
+func (srv *Server) latchFailedSend(id, text string) {
+	if srv == nil {
+		return
+	}
+	srv.sends.releaseAgent(id)
+	if srv.Agents != nil {
+		srv.Agents.LatchSendFailure(id, text)
+	}
 }
 
 func (srv *Server) failIfStillWaiting(id, prompt string, since int64, fallback string) {
@@ -31,7 +43,7 @@ func (srv *Server) failIfStillWaiting(id, prompt string, since int64, fallback s
 	if strings.TrimSpace(text) == "" {
 		text = agents.CouldNotSend()
 	}
-	srv.Agents.LatchSendFailure(id, text)
+	srv.latchFailedSend(id, text)
 	srv.watchSend(id, prompt, false)
 }
 
@@ -56,7 +68,7 @@ func (srv *Server) watchSend(id, prompt string, classify bool) {
 			return srv.promptLanded(id, prompt, since)
 		},
 		Fail: func(text string) {
-			srv.Agents.LatchSendFailure(id, text)
+			srv.latchFailedSend(id, text)
 		},
 		Clear: func() {
 			srv.Agents.ClearSendFailure(id)

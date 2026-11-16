@@ -333,6 +333,7 @@ fun ChatScreen(
     }
     val working = agent?.status == "working"
     val failed = agent?.status == "failed"
+    var retrying by remember(hostId, agentId) { mutableStateOf(false) }
     val followUpPlaceholder = if (attachmentState.attachments.isEmpty()) "Follow up..." else "Plan, ask, build..."
     val outboundKey = "$hostId:$agentId"
     val outbound = app.chatOutbound.pending[outboundKey]
@@ -372,7 +373,7 @@ fun ChatScreen(
             }
         }
     }
-    val displayBlocks = remember(blocks, outbound, queuedOutbound, imagesByMessage, working, agent?.updated) {
+    val displayBlocks = remember(blocks, outbound, queuedOutbound, imagesByMessage, working, agent?.updated, retrying) {
         val store = app.chatOutbound
         val enriched = blocks.map { block ->
             when (block) {
@@ -402,13 +403,14 @@ fun ChatScreen(
         } else {
             val label = when {
                 outbound.waitingForLink -> "Sending when back"
+                retrying -> null
                 queuedOutbound.isNotEmpty() || outboundIsQueued(working, agent?.updated ?: 0L, outbound.stagedAtMs) -> "Queued"
                 else -> null
             }
             enriched + waitingRows + bubble(outbound, label)
         }
     }
-    val awaitingReply = chatAwaitingReply(working, outbound, agent?.updated ?: 0L, failed)
+    val awaitingReply = chatAwaitingReply(working, outbound, agent?.updated ?: 0L, failed && !retrying)
     val turns = remember(displayBlocks, awaitingReply) { splitChatTurns(displayBlocks, awaitingReply) }
     var openTurns by remember { mutableStateOf(emptySet<String>()) }
     val turnSummaries = remember(turns) {
@@ -800,21 +802,38 @@ fun ChatScreen(
                                 style = Type.meta,
                                 color = Tokens.current.muted,
                             )
-                            if (showRetry) {
+                            if (showRetry && !retrying) {
                                 SecondaryButton("Retry", Modifier.padding(start = 12.dp)) {
-                                    val row = outbound ?: return@SecondaryButton
                                     val ws = agent?.workspace?.takeIf { it.isNotEmpty() } ?: agent?.cwd.orEmpty()
-                                    scope.launchChatFollowUp(
-                                        hosts,
-                                        app.vault,
-                                        db,
+                                    val planned = planRetrySend(
                                         app.chatOutbound,
                                         hostId,
                                         agentId,
-                                        row.displayText,
-                                        row.imagePaths,
+                                        outbound,
                                         ws,
-                                    )
+                                    ) ?: return@SecondaryButton
+                                    retrying = true
+                                    scope.launch {
+                                        try {
+                                            deliverAndMark(
+                                                hosts,
+                                                app.vault,
+                                                db,
+                                                app.chatOutbound,
+                                                hostId,
+                                                agentId,
+                                                QueuedFollowUpDelivery(
+                                                    planned.text,
+                                                    planned.imagePaths,
+                                                    planned.workspace,
+                                                    planned.cid,
+                                                ),
+                                            )
+                                        } finally {
+                                            app.chatOutbound.endRetry(hostId, agentId)
+                                            retrying = false
+                                        }
+                                    }
                                 }
                             }
                         }

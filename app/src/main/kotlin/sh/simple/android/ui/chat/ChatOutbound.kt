@@ -18,6 +18,7 @@ class ChatOutboundStore {
     val queued = mutableStateMapOf<String, List<OutboundChatBubble>>()
     private val deliveries = mutableStateMapOf<String, QueuedFollowUpDelivery>()
     private val inFlight = HashSet<String>()
+    private val retries = HashSet<String>()
 
     private fun agentKey(hostId: String, agentId: String) = "$hostId:$agentId"
 
@@ -63,6 +64,24 @@ class ChatOutboundStore {
 
     fun endDelivery(hostId: String, agentId: String, cid: String) {
         synchronized(inFlight) { inFlight.remove("${agentKey(hostId, agentId)}:$cid") }
+    }
+
+    fun deliveryInFlight(hostId: String, agentId: String): Boolean {
+        val prefix = "${agentKey(hostId, agentId)}:"
+        return synchronized(inFlight) { inFlight.any { it.startsWith(prefix) } }
+    }
+
+    fun beginRetry(hostId: String, agentId: String): Boolean =
+        synchronized(retries) { retries.add(agentKey(hostId, agentId)) }
+
+    fun endRetry(hostId: String, agentId: String) {
+        synchronized(retries) { retries.remove(agentKey(hostId, agentId)) }
+    }
+
+    fun markRetrySending(hostId: String, agentId: String) {
+        val key = agentKey(hostId, agentId)
+        val row = pending[key] ?: return
+        pending[key] = row.copy(waitingForLink = false, daemonAcked = false, stagedAtMs = System.currentTimeMillis())
     }
 
     fun deliveryFor(hostId: String, agentId: String): QueuedFollowUpDelivery? =
@@ -119,6 +138,33 @@ fun unmatchedOutbound(rows: List<OutboundChatBubble>, transcriptUserLines: List<
         val want = normalizeUserMatchText(row.displayText)
         transcriptUserLines.drop(row.userLinesBefore).none { normalizeUserMatchText(it) == want }
     }
+
+data class RetrySend(
+    val text: String,
+    val imagePaths: List<String>,
+    val workspace: String,
+    val cid: String,
+)
+
+fun planRetrySend(
+    store: ChatOutboundStore,
+    hostId: String,
+    agentId: String,
+    outbound: OutboundChatBubble?,
+    workspace: String,
+): RetrySend? {
+    if (store.deliveryInFlight(hostId, agentId) || !store.beginRetry(hostId, agentId)) return null
+    val remembered = store.deliveryFor(hostId, agentId)
+    val text = outbound?.displayText?.trim()?.takeIf { it.isNotEmpty() } ?: remembered?.text?.trim().orEmpty()
+    if (text.isEmpty()) {
+        store.endRetry(hostId, agentId)
+        return null
+    }
+    store.markRetrySending(hostId, agentId)
+    val paths = outbound?.imagePaths ?: remembered?.attachmentLocalPaths.orEmpty()
+    val ws = workspace.ifEmpty { remembered?.workspace.orEmpty() }
+    return RetrySend(text, paths, ws, UUID.randomUUID().toString())
+}
 
 fun outboundIsQueued(agentWorking: Boolean, agentStatusUpdatedMs: Long, stagedAtMs: Long): Boolean =
     agentWorking && agentStatusUpdatedMs in 1 until stagedAtMs

@@ -83,6 +83,11 @@ func sendAgentID(p json.RawMessage) string {
 	return in.ID
 }
 
+func sendReleaseKey(ctx context.Context) string {
+	key, _ := ctx.Value(sendKeyCtx{}).(string)
+	return key
+}
+
 func (sess *session) claimSend(ctx context.Context, p json.RawMessage) (context.Context, bool) {
 	cid := sendClientID(p)
 	if cid == "" {

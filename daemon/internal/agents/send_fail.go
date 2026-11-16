@@ -2,6 +2,7 @@ package agents
 
 import (
 	"context"
+	"log"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -25,6 +26,14 @@ var authFailPhrases = []string{
 	"hook failed",
 	"hooks failed",
 	"failed to run hook",
+	"oauth error",
+}
+
+var loginScreenPhrases = []string{
+	"paste code here if prompted",
+	"browser didn't open",
+	"text style that looks best",
+	"select login method",
 }
 
 var spawnFailPhrases = []string{
@@ -44,15 +53,40 @@ func CouldNotSend() string {
 	return "Could not send."
 }
 
+func NotSignedIn(kind string) string {
+	return KindLabel(kind) + " is not signed in. Open its terminal to sign in."
+}
+
+func SignInReason(kind, line string) string {
+	lower := strings.ToLower(line)
+	for _, p := range loginScreenPhrases {
+		if strings.Contains(lower, p) {
+			return NotSignedIn(kind)
+		}
+	}
+	return line
+}
+
 func ClassifyIdle(screen, prompt string) (string, bool) {
-	if line, ok := matchPhrases(screen, prompt, authFailPhrases); ok {
+	if line, ok := matchAuth(screen, prompt); ok {
 		return line, true
 	}
 	return matchPhrases(screen, prompt, spawnFailPhrases)
 }
 
+func HoldLatchedAuth(latched, screen, outgoing string) (string, bool) {
+	reason := strings.TrimSpace(latched)
+	if reason == "" {
+		return "", false
+	}
+	if _, ok := matchAuth(screen, outgoing); !ok {
+		return "", false
+	}
+	return reason, true
+}
+
 func ClassifyFresh(prev, next, prompt string) (string, bool) {
-	if line, ok := matchPhrases(next, prompt, authFailPhrases); ok {
+	if line, ok := matchAuth(next, prompt); ok {
 		return line, true
 	}
 	if next == prev {
@@ -61,15 +95,29 @@ func ClassifyFresh(prev, next, prompt string) (string, bool) {
 	return matchPhrases(next, prompt, spawnFailPhrases)
 }
 
+func matchAuth(screen, prompt string) (string, bool) {
+	if line, ok := matchPhrasesN(screen, prompt, loginScreenPhrases, 80); ok {
+		return line, true
+	}
+	return matchPhrasesN(screen, prompt, authFailPhrases, 12)
+}
+
 func matchPhrases(screen, prompt string, phrases []string) (string, bool) {
+	return matchPhrasesN(screen, prompt, phrases, 12)
+}
+
+func matchPhrasesN(screen, prompt string, phrases []string, max int) (string, bool) {
 	want := strings.TrimSpace(prompt)
-	lines := nonEmptyLines(screen, 12)
+	lines := nonEmptyLines(screen, max)
 	for i := len(lines) - 1; i >= 0; i-- {
 		line := lines[i]
 		if lineOverlapsPrompt(line, want) {
 			continue
 		}
 		lower := strings.ToLower(line)
+		if strings.Contains(lower, "https://") || strings.Contains(lower, "http://") {
+			continue
+		}
 		for _, p := range phrases {
 			if strings.Contains(lower, p) {
 				return clipLine(line), true
@@ -214,14 +262,14 @@ func RunSendWatch(ctx context.Context, w SendWatch) {
 			if seen {
 				text, ok = ClassifyFresh(prev, screen, w.Prompt)
 			} else {
-				text, ok = matchPhrases(screen, w.Prompt, authFailPhrases)
+				text, ok = matchAuth(screen, w.Prompt)
 				seen = true
 			}
 			prev = screen
 			if ok {
 				failed = true
 				if w.Fail != nil {
-					w.Fail(text)
+					w.Fail(SignInReason(w.Kind, text))
 				}
 				clearBy = time.Now().Add(clearFor)
 			} else if !time.Now().Before(deadline) {
@@ -275,6 +323,7 @@ func (s *Store) LatchSendFailure(id, text string) {
 	}
 	msg := failMessage(id, text)
 	s.sendFail[id] = sendFail{text: text, event: msg, fromSend: true}
+	log.Printf("send fail %s: %s", id, clipLine(text))
 	if a, ok := s.byID[id]; ok {
 		a.Status = "failed"
 		a.Waiting = nil
@@ -292,6 +341,20 @@ func (s *Store) ClearSendFailure(id string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.dropLatchLocked(id, true)
+}
+
+func (s *Store) SendFailureText(id string) (string, bool) {
+	if s == nil || id == "" {
+		return "", false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	cur, ok := s.sendFail[id]
+	text := strings.TrimSpace(cur.text)
+	if !ok || text == "" {
+		return "", false
+	}
+	return text, true
 }
 
 func (s *Store) SendEvent(id string) (wire.Message, bool) {

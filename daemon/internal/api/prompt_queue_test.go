@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -11,10 +12,14 @@ import (
 type fakeAgent struct {
 	mu   sync.Mutex
 	busy atomic.Bool
+	hold atomic.Bool
 	got  []string
 }
 
 func (f *fakeAgent) deliver(_ context.Context, _ string, text string) error {
+	if f.hold.Load() {
+		return errSendHeld
+	}
 	f.mu.Lock()
 	f.got = append(f.got, text)
 	f.mu.Unlock()
@@ -75,6 +80,40 @@ func TestPromptQueueSendsAtOnceWhenIdle(t *testing.T) {
 	queued, _ = q.Submit(context.Background(), "a1", "right after", "phone")
 	if !queued {
 		t.Fatal("second message within the settle window must queue")
+	}
+}
+
+func TestPromptQueueHoldsLatchedAuthInsteadOfDelivering(t *testing.T) {
+	f := &fakeAgent{}
+	f.hold.Store(true)
+	q := testQueue(f)
+	_, err := q.Submit(context.Background(), "a1", "follow up", "phone")
+	if !errors.Is(err, errSendHeld) {
+		t.Fatalf("immediate err %v", err)
+	}
+	if got := f.delivered(); len(got) != 0 {
+		t.Fatalf("delivered immediate %v", got)
+	}
+
+	released := make(chan string, 1)
+	f.busy.Store(true)
+	q.release = func(key string) { released <- key }
+	ctx := context.WithValue(context.Background(), sendKeyCtx{}, "dev:cid1")
+	queued, err := q.Submit(ctx, "a1", "queued follow up", "phone")
+	if err != nil || !queued {
+		t.Fatalf("queued=%v err=%v", queued, err)
+	}
+	f.busy.Store(false)
+	select {
+	case key := <-released:
+		if key != "dev:cid1" {
+			t.Fatalf("released %q", key)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("queued send was not released")
+	}
+	if got := f.delivered(); len(got) != 0 {
+		t.Fatalf("delivered queued %v", got)
 	}
 }
 
